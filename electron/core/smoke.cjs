@@ -16,7 +16,7 @@ function run({ app, BrowserWindow, store, out }) {
       let mounted = false, text = ""
       try {
         mounted = await w.webContents.executeJavaScript("document.getElementById('root')?.children.length > 0")
-        text = await w.webContents.executeJavaScript("document.body.innerText.slice(0, 120)")
+        text = await w.webContents.executeJavaScript("document.body.innerText.slice(0, 300)")
       } catch (e) { errors.push(String(e)) }
       if (process.env.AUREON_SMOKE_SHOTS) {
         try { fs.writeFileSync(require("node:path").join(process.env.AUREON_SMOKE_SHOTS, w.getTitle().replace(/\W+/g, "-") + ".png"), (await w.webContents.capturePage()).toPNG()) } catch { /* sem captura */ }
@@ -31,6 +31,6 @@ function run({ app, BrowserWindow, store, out }) {
     const report = { ok: !errors.length && windows.every((w) => w.mounted), windows, errors, roundtrip, metrics, totalMemMB: metrics.reduce((a, p) => a + p.memMB, 0) }
     if (out) fs.writeFileSync(out, JSON.stringify(report, null, 1))
     app.exit(0)
-  }, 9000)
+  }, Number(process.env.AUREON_SMOKE_WAIT) || 9000)
 }
 module.exports = { run }

@@ -20,6 +20,10 @@ const DEFAULTS = {
     hotkey: "CommandOrControl+Alt+Space",
     hotkeyOn: true,
     onboarded: false,
+    /** procura atualização sozinho (ao abrir e a cada 4 h) */
+    autoCheck: true,
+    /** baixa sozinho quando acha (instalar continua sendo um clique seu) */
+    autoUpdate: true,
   },
   notch: {
     enabled: true,

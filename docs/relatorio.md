@@ -1,4 +1,25 @@
-# Relatório da reconstrução: Widgy → Aureon Hub 0.1.0
+# Relatório da reconstrução: Widgy → Aureon Hub 0.1.2
+
+## Novidade 0.1.2: atualizar pelo próprio app
+
+- Fica em **Configurações › Atualizações**: mostra a versão instalada e tem os botões "Procurar agora", "Baixar" e "Reiniciar e atualizar".
+- Opções "Procurar sozinho" (ao abrir e a cada 4 h) e "Baixar sozinho". Instalar continua sendo um clique seu, ou acontece ao sair do app.
+- Instala por cima, sem desinstalar e sem perder configurações (`electron-updater`, o mesmo esquema do Widgy).
+- Se você estiver transmitindo, o app pergunta antes de atualizar.
+- As versões vêm das Releases do repositório `core-dev-user/aureon-hub`, que precisa ser **público**. O workflow `release.yml` publica sozinho quando a versão do `package.json` muda na `main`.
+- A versão portátil (zip) não se atualiza sozinha: o app explica isso na própria tela.
+
+
+## Correção 0.1.1 (achada no primeiro teste num Windows real)
+
+- **Sintoma** (vídeo do usuário): o notch abria ao passar o mouse e os botões acendiam, mas nenhum clique funcionava. Nem as abas nem os botões respondiam.
+- **Causa:** a janela do notch era "não focável", para não roubar o foco. No Windows, o Chromium responde ao clique numa janela que não pode ser ativada com `MA_NOACTIVATEANDEAT`: não ativa e descarta o clique. Isso não acontece no Linux nem no navegador, por isso os testes daqui não pegaram.
+- **Correção:**
+  - o notch passa a ser uma janela focável do tipo "ferramenta", fora do Alt+Tab e da barra;
+  - ele aparece sem pegar o foco e devolve o foco ao app em uso quando o mouse sai;
+  - a camada de widgets também virou janela de ferramenta.
+- **Teste novo:** `npm run test:click` faz cliques reais do sistema (xdotool) no notch do Electron. Ele confirma que o clique troca a aba no Linux, mas não reproduz o comportamento do Windows: **a confirmação final é no seu PC**.
+
 
 ## O que foi removido (de propósito)
 

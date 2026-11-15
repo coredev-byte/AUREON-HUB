@@ -27,12 +27,18 @@ function createNotchManager({ getState, onCreated }) {
     const win = new BrowserWindow({
       ...geometry(display, s.notch.scale), title: "aureon-notch",
       frame: false, transparent: true, resizable: false, movable: false, minimizable: false, maximizable: false,
-      fullscreenable: false, skipTaskbar: true, focusable: false, hasShadow: false, show: false, alwaysOnTop: true,
+      // Focável de propósito: no Windows, janela "não focável" tem o clique descartado pelo Chromium
+      // (o hover funciona, o clique não). "toolbar" = janela de ferramenta: fora do Alt+Tab e da barra.
+      // Ela não pega o foco ao aparecer (showInactive) e devolve o foco quando o mouse sai.
+      fullscreenable: false, skipTaskbar: true, focusable: process.env.AUREON_TEST_NOTCH_UNFOCUSABLE !== "1", hasShadow: false, show: false, alwaysOnTop: true,
+      ...(process.platform === "win32" ? { type: "toolbar" } : {}),
       backgroundColor: "#00000000",
       webPreferences: windows.webPreferences({ backgroundThrottling: false }),
     })
     win.setAlwaysOnTop(true, "pop-up-menu")
-    win.setIgnoreMouseEvents(true, { forward: true })
+    // Linux não repassa o movimento do mouse a janelas atravessáveis: nos testes de clique real a janela fica "sólida"
+    const solid = process.env.AUREON_TEST_SOLID_NOTCH === "1"
+    if (!solid) win.setIgnoreMouseEvents(true, { forward: true })
     win.setVisibleOnAllWorkspaces?.(true)
     windows.register(win, "notch", { displayId: String(display.id) })
     windows.load(win, "notch", { display: String(display.id), primary: display.id === screen.getPrimaryDisplay().id ? "1" : "0" })
@@ -51,7 +57,7 @@ function createNotchManager({ getState, onCreated }) {
     if (fsHere && !(sharing && s.notch.fullscreenIndicator)) { win.hide(); return }
     win.webContents.send("notch:fullscreen", fsHere)
     if (fsHere) win.setIgnoreMouseEvents(true, { forward: false })
-    else win.setIgnoreMouseEvents(true, { forward: true })
+    else if (process.env.AUREON_TEST_SOLID_NOTCH !== "1") win.setIgnoreMouseEvents(true, { forward: true })
     if (!win.isVisible()) win.showInactive()
   }
 
@@ -78,7 +84,9 @@ function createNotchManager({ getState, onCreated }) {
       for (const [id, w] of wins) {
         if (w.isDestroyed() || w.webContents.id !== sender.id) continue
         if (fsDisplay === id) return w.setIgnoreMouseEvents(true, { forward: false })
-        w.setIgnoreMouseEvents(!on, { forward: true })
+        if (process.env.AUREON_TEST_SOLID_NOTCH !== "1") w.setIgnoreMouseEvents(!on, { forward: true })
+        // o mouse saiu depois de um clique: o foco volta para o app que estava em uso
+        if (!on && w.isFocused()) w.blur()
       }
     },
     toggle(displayId) {

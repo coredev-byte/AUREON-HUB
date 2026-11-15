@@ -17,7 +17,7 @@ export const isElectron = typeof window !== "undefined" && !!window.aureon
 
 /* ---------- imitação para o navegador ---------- */
 const DEFAULT_STATE: AppState = {
-  settings: { accent: "#0B7BFA", surface: "#0E0E10", font: "inter", radius: 14, reduceMotion: false, launchAtLogin: false, signalUrl: "", city: null, units: "c", hotkey: "CommandOrControl+Alt+Space", hotkeyOn: true, onboarded: false },
+  settings: { accent: "#0B7BFA", surface: "#0E0E10", font: "inter", radius: 14, reduceMotion: false, launchAtLogin: false, signalUrl: "", city: null, units: "c", hotkey: "CommandOrControl+Alt+Space", hotkeyOn: true, onboarded: false, autoCheck: true, autoUpdate: true },
   notch: { enabled: true, displays: "primary", idleClock: true, hoverExpand: true, hoverDelay: 140, scale: 1, showMedia: true, mediaSource: "", notifications: true, fullscreenIndicator: true },
   widgets: { enabled: true, activeProfile: "padrao", hideFullscreen: true, editMode: false },
   profiles: { items: [{ id: "padrao", name: "Padrão", widgets: [] }] },
@@ -87,6 +87,8 @@ function browserBridge(): Native {
     "app:metrics": () => ({ processes: [], windows: { notch: 0, widgets: 0 }, fullscreen: null, media: null, share }),
     "app:external": (url: string) => { window.open(url, "_blank") },
     "app:quit": () => {}, "win:cmd": () => {},
+    "update:get": () => ({ status: "idle", current: "dev", version: "", percent: 0, error: "", notes: "", supported: false, reason: "Atualização só no app instalado.", checkedAt: 0 }),
+    "update:check": () => null, "update:download": () => null, "update:install": () => false,
   }
   return {
     platform: "browser",

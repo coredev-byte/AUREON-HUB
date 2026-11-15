@@ -5,6 +5,7 @@ export interface Settings {
   accent: string; surface: string; font: "inter" | "grotesk"; radius: number; reduceMotion: boolean
   launchAtLogin: boolean; signalUrl: string; city: City | null; units: "c" | "f"
   hotkey: string; hotkeyOn: boolean; onboarded: boolean
+  autoCheck: boolean; autoUpdate: boolean
 }
 export interface NotchSettings {
   enabled: boolean; displays: "primary" | "all"; idleClock: boolean; hoverExpand: boolean; hoverDelay: number
@@ -72,4 +73,11 @@ export interface SharePublic {
   quality?: string
   audio?: boolean
   hostName?: string
+}
+
+/** estado do atualizador (electron/core/updater.cjs) */
+export interface UpdateState {
+  status: "idle" | "checking" | "available" | "none" | "downloading" | "ready" | "error"
+  current: string; version: string; percent: number; error: string; notes: string
+  supported: boolean; reason: string; checkedAt: number
 }

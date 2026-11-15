@@ -10,11 +10,12 @@ const INVOKE = new Set([
   "notify:push", "notify:list", "notify:dismiss", "notify:read", "notify:clear", "notify:action",
   "notch:interactive", "notch:menu", "widgets:interactive",
   "app:open", "app:info", "app:metrics", "app:external", "app:quit", "win:cmd",
+  "update:get", "update:check", "update:download", "update:install",
 ])
 const EVENTS = new Set([
   "store:changed", "media:state", "system:state", "weather:state", "games:state", "fs:state",
   "share:state", "share:command", "notify:new", "notify:list", "notch:toggle", "notch:fullscreen",
-  "widgets:paused", "nav", "win:maximized", "displays:changed",
+  "widgets:paused", "nav", "win:maximized", "displays:changed", "update:state",
 ])
 
 contextBridge.exposeInMainWorld("aureon", {

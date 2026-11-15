@@ -16,6 +16,7 @@ const { createSystem } = require("./integrations/system.cjs")
 const { createWeather } = require("./integrations/weather.cjs")
 const { createGames } = require("./integrations/games.cjs")
 const { probeSignal } = require("./share/probe.cjs")
+const { createUpdater } = require("./core/updater.cjs")
 
 const SMOKE = process.env.AUREON_SMOKE === "1"
 if (!SMOKE && !app.requestSingleInstanceLock()) { app.quit(); process.exit(0) }
@@ -23,7 +24,7 @@ app.setAppUserModelId("com.aureon.hub")
 if (process.defaultApp) app.setAsDefaultProtocolClient("aureon", process.execPath, [path.resolve(process.argv[1])])
 else app.setAsDefaultProtocolClient("aureon")
 
-let store, notch, widgets, monitor, notifications, capture, media, system, weather, games
+let store, notch, widgets, monitor, notifications, capture, media, system, weather, games, updates
 let mainWin = null, tray = null, quitting = false
 let shareState = { active: false }, blocker = null
 
@@ -195,6 +196,14 @@ function registerIpc() {
   h("app:external", any, (_e, url) => { if (/^https:\/\//.test(String(url))) void shell.openExternal(String(url)) })
   h("app:quit", need("main"), () => { quitting = true; app.quit() })
 
+  h("update:get", any, () => updates.get())
+  h("update:check", need("main"), () => updates.check())
+  h("update:download", need("main"), () => updates.download())
+  h("update:install", need("main"), () => {
+    // transmissão ativa: a página principal pergunta antes; aqui só garante que fecha de verdade
+    return updates.install(() => { quitting = true; globalShortcut.unregisterAll(); store.flush() })
+  })
+
   h("win:cmd", need("main"), (_e, cmd) => {
     if (cmd === "minimize") mainWin.minimize()
     else if (cmd === "maximize") mainWin.isMaximized() ? mainWin.unmaximize() : mainWin.maximize()
@@ -218,6 +227,7 @@ app.whenReady().then(() => {
   system = createSystem({ broadcast, appMetrics: () => app.getAppMetrics() })
   weather = createWeather({ fetch: net.fetch.bind(net), broadcast, getCity: () => state().settings.city })
   games = createGames({ broadcast })
+  updates = createUpdater({ app, broadcast, getSettings: () => state().settings, notify: (n) => notifications.push(n) })
   capture = createCapture()
   monitor = createMonitor({
     screen,
@@ -238,6 +248,7 @@ app.whenReady().then(() => {
     if (section === "widgets") { widgets.refresh(); widgets.setEditMode(value.editMode) }
     if (section === "settings") {
       applyHotkey()
+      updates.schedule()
       if (!SMOKE) app.setLoginItemSettings({ openAtLogin: value.launchAtLogin, args: ["--hidden"] })
       void weather.refresh()
     }
@@ -252,6 +263,7 @@ app.whenReady().then(() => {
   widgets.sync()
   monitor.start()
   applyHotkey()
+  if (!SMOKE) updates.schedule()
   tray = new Tray(trayImage())
   tray.on("click", () => showMain())
   updateTray()
@@ -262,6 +274,6 @@ app.on("window-all-closed", (e) => e.preventDefault())
 app.on("before-quit", () => {
   quitting = true
   globalShortcut.unregisterAll()
-  monitor?.stop(); media?.stop(); system?.stop(); weather?.stop()
+  monitor?.stop(); media?.stop(); updates?.stop(); system?.stop(); weather?.stop()
   store?.flush()
 })

@@ -25,6 +25,14 @@ npm run test:turn      # transmissão forçada pelo TURN (precisa do coturn inst
 npm run test:electron  # abre o app Electron de verdade e confere as janelas
 ```
 
+## Publicar uma versão (o app se atualiza sozinho)
+
+1. Aumente `version` no `package.json` (ex.: 0.1.2 → 0.1.3) e envie para a `main`.
+2. O workflow **Lançar versão** gera o instalador e publica a Release (com `latest.yml`).
+3. Quem tem o Aureon instalado vê a atualização em Configurações › Atualizações (e ela é baixada sozinha, se ligado).
+
+O repositório precisa ser público para o app conseguir ler as Releases.
+
 ## Instalador do Windows
 
 `npm run dist:win` no Windows, ou o workflow **build** no GitHub (artefato `AureonHub-Setup`).

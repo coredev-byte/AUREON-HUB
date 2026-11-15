@@ -21,6 +21,8 @@ function createWidgetManager({ getState, toBottom }) {
       ...display.workArea, title: "aureon-widgets",
       frame: false, transparent: true, resizable: false, movable: false, minimizable: true, maximizable: false,
       fullscreenable: false, skipTaskbar: true, hasShadow: false, show: false, backgroundColor: "#00000000",
+      // janela de ferramenta no Windows: fora do Alt+Tab (os widgets não são uma "janela" para o usuário)
+      ...(process.platform === "win32" ? { type: "toolbar" } : {}),
       webPreferences: windows.webPreferences({ backgroundThrottling: true }),
     })
     win.setIgnoreMouseEvents(true, { forward: true })
