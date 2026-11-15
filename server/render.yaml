@@ -1,0 +1,15 @@
+# Render.com (plano gratuito aceita WebSocket). Crie um "Blueprint" apontando para este arquivo.
+services:
+  - type: web
+    name: aureon-signal
+    runtime: docker
+    rootDir: server
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: TRUST_PROXY
+        value: "1"
+      - key: TURN_URLS
+        sync: false
+      - key: TURN_SECRET
+        sync: false

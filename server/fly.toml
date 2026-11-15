@@ -1,0 +1,17 @@
+# Fly.io: fly launch --copy-config --no-deploy && fly deploy   (rode dentro da pasta server/)
+app = "aureon-signal"
+primary_region = "gru"
+[build]
+  dockerfile = "Dockerfile"
+[env]
+  PORT = "8787"
+  TRUST_PROXY = "1"
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = "off"
+  min_machines_running = 1
+  [[http_service.checks]]
+    path = "/health"
+    interval = "30s"
+    timeout = "5s"

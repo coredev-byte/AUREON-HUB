@@ -1,0 +1,11 @@
+{
+  "name": "aureon-signal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Servidor de sinalização (WebSocket) da transmissão do Aureon Hub",
+  "main": "index.mjs",
+  "scripts": { "start": "node index.mjs" },
+  "engines": { "node": ">=20" },
+  "dependencies": { "ws": "^8.18.0" }
+}

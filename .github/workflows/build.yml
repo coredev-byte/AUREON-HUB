@@ -1,0 +1,54 @@
+# Testes em todo push e instalador de teste do Windows (artefato, NÃO é publicado como release).
+name: build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm run test:e2e
+      - run: sudo apt-get install -y coturn && node tests/e2e/share-turn-e2e.cjs
+      - run: npm run test:electron
+
+  windows-installer:
+    runs-on: windows-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run build
+      - run: npx electron-builder --win nsis --x64 --publish never
+      # instala em silêncio, abre em modo fumaça, confere o relatório e desinstala
+      - name: Instalar, abrir e desinstalar
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem release -Filter "AureonHub-Setup-*.exe" | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList "/S" -Wait
+          $exe = Join-Path $env:LOCALAPPDATA "Programs\aureon-hub\Aureon Hub.exe"
+          if (-not (Test-Path $exe)) { throw "não instalou em $exe" }
+          $env:AUREON_SMOKE = "1"; $env:AUREON_SMOKE_OUT = Join-Path $env:RUNNER_TEMP "smoke.json"; $env:AUREON_DATA_DIR = Join-Path $env:RUNNER_TEMP "dados"
+          Start-Process $exe -Wait
+          $r = Get-Content $env:AUREON_SMOKE_OUT | ConvertFrom-Json
+          $r | ConvertTo-Json -Depth 5
+          if (-not $r.ok) { throw "o app abriu com erros" }
+          $un = Join-Path $env:LOCALAPPDATA "Programs\aureon-hub\Uninstall Aureon Hub.exe"
+          Start-Process $un -ArgumentList "/S" -Wait
+          Start-Sleep 5
+          if (Test-Path $exe) { throw "não desinstalou" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AureonHub-Setup
+          path: release/AureonHub-Setup-*.exe
