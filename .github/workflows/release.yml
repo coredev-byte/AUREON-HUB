@@ -1,0 +1,57 @@
+name: Publicar Aureon Hub para Windows
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aureon-hub-release
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalar dependências
+        run: npm ci
+      - name: Verificar qualidade do código
+        run: npm run lint
+      - name: Executar testes
+        run: npm test
+      - name: Compilar aplicativo
+        run: npm run build
+      - name: Gerar instalador e diretório portátil
+        run: npx electron-builder --win nsis --x64 --publish never
+      - name: Compactar versão portátil
+        shell: pwsh
+        run: |
+          if (!(Test-Path "release/win-unpacked/Aureon Hub.exe")) { throw "Executável portátil ausente" }
+          Compress-Archive -Path "release/win-unpacked/*" -DestinationPath "release/AureonHub-0.1.0-portatil.zip" -Force
+          if (!(Test-Path "release/AureonHub-0.1.0-portatil.zip")) { throw "ZIP portátil não gerado" }
+      - name: Criar ou atualizar GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $setup = Get-ChildItem "release" -Filter "AureonHub-Setup-*.exe" | Select-Object -First 1
+          if (-not $setup) { throw "Instalador não encontrado" }
+          $zip = (Resolve-Path "release/AureonHub-0.1.0-portatil.zip").Path
+          gh release view v0.1.0 --repo "$env:GITHUB_REPOSITORY" > $null 2>&1
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload v0.1.0 $setup.FullName $zip --clobber --repo "$env:GITHUB_REPOSITORY"
+          } else {
+            gh release create v0.1.0 $setup.FullName $zip --target "$env:GITHUB_SHA" --title "Aureon Hub 0.1.0 (teste)" --notes "Versão de teste para Windows x64. Notch Carbono, widgets e transmissão de tela. A transmissão requer servidor próprio e não foi validada em dois PCs de redes diferentes. Sem assinatura digital." --prerelease --repo "$env:GITHUB_REPOSITORY"
+          }
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao publicar o GitHub Release" }
+          gh release view v0.1.0 --json url,assets --repo "$env:GITHUB_REPOSITORY"
