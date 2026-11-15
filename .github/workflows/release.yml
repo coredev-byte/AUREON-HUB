@@ -1,62 +1,74 @@
-# Publica uma versão nova (instalador + latest.yml, que o app usa para se atualizar sozinho).
-# Dispara quando a versão do package.json muda na main, ou com uma etiqueta vX.Y.Z.
 name: Lançar versão
 
 on:
   push:
-    tags: ["v*"]
     branches: [main]
-    paths: ["package.json"]
+    paths:
+      - 'package.json'
+      - '.github/workflows/release.yml'
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: aureon-hub-release
+  cancel-in-progress: false
+
 jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
-
-      - name: Versão e etiqueta
-        id: version
-        shell: bash
-        run: |
-          set -euo pipefail
-          VERSION="$(node -p "require('./package.json').version")"
-          TAG="v${VERSION}"
-          if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" != "$TAG" ]]; then echo "Etiqueta diferente da versão do package.json"; exit 1; fi
-          if [[ "$GITHUB_REF_TYPE" != "tag" ]] && git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
-            echo "Etiqueta $TAG já existe: nada a publicar."; echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
-          fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"; echo "skip=false" >> "$GITHUB_OUTPUT"
-
-      - if: steps.version.outputs.skip != 'true'
+      - name: Baixar código
+        uses: actions/checkout@v4
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Instalar dependências
         run: npm ci
-      - if: steps.version.outputs.skip != 'true'
+      - name: Verificar código e testes
         run: npm run lint && npm test
-      - if: steps.version.outputs.skip != 'true'
+      - name: Gerar aplicativo
         run: npm run build
-      - name: Gerar e publicar o instalador
-        if: steps.version.outputs.skip != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win nsis --x64 --publish always
-
-      - name: Compactar versão portátil
-        if: steps.version.outputs.skip != 'true'
+      - name: Gerar instalador do Windows (sem publicar em paralelo)
+        run: npx electron-builder --win nsis --x64 --publish never
+      - name: Preparar ZIP portátil e metadados do atualizador
         shell: pwsh
         run: |
-          if (!(Test-Path "release/win-unpacked/Aureon Hub.exe")) { throw "Executável portátil ausente" }
-          Compress-Archive -Path "release/win-unpacked/*" -DestinationPath "release/AureonHub-0.1.2-portatil.zip" -Force
-      - name: Publicar ZIP portátil na release
-        if: steps.version.outputs.skip != 'true'
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $exe = Get-ChildItem 'release' -Filter 'AureonHub-Setup-*.exe' | Select-Object -First 1
+          if (-not $exe -or $exe.Length -lt 1000000) { throw "Instalador inválido ou ausente" }
+          if (!(Test-Path 'release/win-unpacked/Aureon Hub.exe')) { throw "Executável portátil ausente" }
+          Compress-Archive -Path 'release/win-unpacked/*' -DestinationPath "release/AureonHub-$version-portatil.zip" -Force
+          if (!(Test-Path 'release/latest.yml')) {
+            $hash = (Get-FileHash $exe.FullName -Algorithm SHA512).Hash
+            $sha512 = [Convert]::ToBase64String([Convert]::FromHexString($hash))
+            $name = $exe.Name
+            $size = $exe.Length
+            $date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
+            $yaml = "version: $version`nfiles:`n  - url: $name`n    sha512: $sha512`n    size: $size`npath: $name`nsha512: $sha512`nreleaseDate: '$date'`n"
+            [System.IO.File]::WriteAllText((Join-Path $PWD 'release/latest.yml'),$yaml)
+          }
+          if (!(Test-Path 'release/latest.yml')) { throw "latest.yml ausente: atualização interna indisponível" }
+      - name: Publicar instalador, portátil e latest.yml em sequência
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload v0.1.2 "release/AureonHub-0.1.2-portatil.zip" --clobber --repo "$env:GITHUB_REPOSITORY"
-          if ($LASTEXITCODE -ne 0) { throw "Falha ao publicar ZIP portátil" }
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $tag = "v$version"
+          $exe = Get-ChildItem 'release' -Filter 'AureonHub-Setup-*.exe' | Select-Object -First 1
+          $zip = (Resolve-Path "release/AureonHub-$version-portatil.zip").Path
+          $latest = (Resolve-Path 'release/latest.yml').Path
+          gh release view $tag --repo "$env:GITHUB_REPOSITORY" *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --target "$env:GITHUB_SHA" --title "Aureon Hub $version (Windows)" --notes "Versão 0.1.2: correção dos cliques do Notch e atualizador integrado. Transmissão requer servidor próprio. Instalador sem assinatura." --repo "$env:GITHUB_REPOSITORY"
+            if ($LASTEXITCODE -ne 0) { throw "Falha ao criar release $tag" }
+          }
+          gh release upload $tag $exe.FullName $zip $latest --clobber --repo "$env:GITHUB_REPOSITORY"
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao enviar arquivos da release" }
+          $block = Get-ChildItem 'release' -Filter 'AureonHub-Setup-*.exe.blockmap' | Select-Object -First 1
+          if ($block) { gh release upload $tag $block.FullName --clobber --repo "$env:GITHUB_REPOSITORY" }
+          gh release view $tag --json url,assets --repo "$env:GITHUB_REPOSITORY"
