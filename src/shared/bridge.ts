@@ -18,7 +18,7 @@ export const isElectron = typeof window !== "undefined" && !!window.aureon
 /* ---------- imitação para o navegador ---------- */
 const DEFAULT_STATE: AppState = {
   settings: { accent: "#0B7BFA", surface: "#0E0E10", font: "inter", numFont: "grotesk", radius: 14, reduceMotion: false, animSpeed: 1, textScale: 1, hour12: false, widgetBg: 0.88, widgetBlur: 14, widgetBorder: true, widgetShadow: "soft", widgetRadius: 14, notchColor: "black", notchBorder: false, launchAtLogin: false, signalUrl: "", city: null, units: "c", hotkey: "CommandOrControl+Alt+Space", hotkeyOn: true, onboarded: false, autoCheck: true, autoUpdate: true },
-  notch: { enabled: true, displays: "primary", idleClock: true, hoverExpand: true, hoverDelay: 140, scale: 1, showMedia: true, mediaSource: "", notifications: true, fullscreenIndicator: true },
+  notch: { enabled: true, displays: "primary", idleClock: true, hoverExpand: true, hoverDelay: 140, scale: 1, showMedia: true, mediaSource: "", notifications: true, fullscreenIndicator: true, intro: true },
   widgets: { enabled: true, activeProfile: "padrao", hideFullscreen: true, editMode: false },
   profiles: { items: [{ id: "padrao", name: "Padrão", widgets: [] }] },
   share: { quality: "auto", audio: false, approval: true, preferHardware: true, name: "" },

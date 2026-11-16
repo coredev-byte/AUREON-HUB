@@ -18,6 +18,8 @@ function targets(displays, primaryId, mode) {
   return mode === "all" ? displays : displays.filter((d) => d.id === primaryId)
 }
 
+let introShown = false
+
 function createNotchManager({ getState, onCreated }) {
   const wins = new Map() // displayId -> BrowserWindow
   let fsDisplay = null, sharing = false
@@ -41,7 +43,11 @@ function createNotchManager({ getState, onCreated }) {
     if (!solid) win.setIgnoreMouseEvents(true, { forward: true })
     win.setVisibleOnAllWorkspaces?.(true)
     windows.register(win, "notch", { displayId: String(display.id) })
-    windows.load(win, "notch", { display: String(display.id), primary: display.id === screen.getPrimaryDisplay().id ? "1" : "0" })
+    const primary = display.id === screen.getPrimaryDisplay().id
+    // abertura (logo -> notch) só na primeira janela do monitor principal desta execução
+    const intro = primary && !introShown && s.notch.intro !== false && (process.env.AUREON_SMOKE !== "1" || process.env.AUREON_TEST_INTRO === "1")
+    if (primary) introShown = true
+    windows.load(win, "notch", { display: String(display.id), primary: primary ? "1" : "0", ...(intro ? { intro: "1" } : {}) })
     win.once("ready-to-show", () => { applyVisibility(String(display.id)); onCreated?.(win) })
     win.on("closed", () => { if (wins.get(String(display.id)) === win) wins.delete(String(display.id)) })
     wins.set(String(display.id), win)

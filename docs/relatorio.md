@@ -1,4 +1,50 @@
-# Relatório da reconstrução: Widgy → Aureon Hub 0.4.0
+# Relatório da reconstrução: Widgy → Aureon Hub 0.5.0
+
+## 0.5.0 (pedido do usuário: abertura, esportes e clima na estética Aureon, transmissão em grupo com código curto)
+
+- **Abertura:**
+  - Ao iniciar o app, a logo aparece no centro, duas fitas de luz (branca e azul) sobem até o topo e o notch nasce estreito e abre com um contorno de luz que apaga. Dura cerca de 2,7 s.
+  - Roda uma vez por execução, só no monitor principal. Não roda com "reduzir animações" (do app ou do Windows) e pode ser desligada em Notch › Animação de abertura.
+  - Só usa opacidade, transform e o traço das fitas. Depois disso o componente sai da tela.
+- **Transmissão em grupo (sala no estilo Discord):**
+  - Uma sala junta várias pessoas, e qualquer uma pode transmitir a própria tela ao mesmo tempo que as outras. Cada pessoa escolhe quais telas assistir (uma ou várias, em grade), com volume, tela cheia e estatísticas por tela.
+  - O aviso "Fulano começou a transmitir" tem o botão Assistir.
+  - **Código curto:** `XXXX-XXXX` (8 caracteres) no lugar dos 16. Aceita minúsculas e com ou sem traço. Continua protegido por aprovação, limite de tentativas por IP, trava da sala e validade.
+  - **Dono da sala:** aprova, recusa, remove, tranca e troca o código. Se sair, a sala passa para quem entrou primeiro; só o dono encerra para todos.
+  - Ninguém transmite sem escolher a própria tela, nada é gravado e ninguém controla o PC de ninguém.
+  - **Servidor 2.0 (protocolo 2):** precisa ser publicado de novo. O teste de conexão avisa quando o servidor está desatualizado.
+  - Nova interface na estética Aureon:
+    - entrada: criar sala ou entrar com código;
+    - palco com as telas;
+    - barra "Transmitir minha tela";
+    - lateral com o código, as pessoas (ao vivo, assistindo você, dono), os pedidos e as opções.
+  - A aba Transmissão do notch passou a mostrar a sala.
+- **Esportes na estética Aureon** (Futebol, Valorant, CS2; o estilo clássico do Widgy continua como opção):
+  - **Placar em destaque:** campeonato, selo "Ao vivo", escudos, placar e tempo de jogo ("2º tempo · 72'"), com barra de progresso.
+  - **Valorant:** escudos e o mapa em andamento ("Mapa 2 · Haven"), lidos da página da partida no vlr.gg só para a partida em destaque. A arte do agente vem do valorant-api.com, e dá para escolher o agente ou nenhum.
+  - **Próximos jogos:** abas de futebol, basquete (NBA, ESPN) e F1 (sessões do fim de semana, ESPN).
+  - **Classificação do campeonato** (ESPN): posição, pontos, jogos, vitórias e saldo, com a cor da zona (Libertadores, rebaixamento etc.) e o seu time destacado.
+  - **Versão pequena:** "Ao vivo" ou "Próximo jogo".
+  - Partidas sem horário ou com times a definir ficam por último na escolha do destaque.
+- **Clima na estética Aureon:**
+  - Cartão de vidro com cabeçalho e "⋯" (previsão das próximas horas e dias), cidade, temperatura, condição, máxima e mínima.
+  - Uma cena desenhada para cada tempo: ensolarado, parcialmente nublado, nublado, chuva, tempestade, neblina, vento, neve e noite.
+  - Movimento leve: nuvens, chuva, neve, vento, raio e estrelas, só com transform e opacidade. Fica parado em tela cheia e com "reduzir animações".
+  - Dá para fixar uma cena em Widgets › Conteúdo.
+- **Vidro real também nos widgets Aureon:** com Fundo › Vidro, o papel de parede desfocado aparece por trás do cartão.
+- **Testes:**
+  - servidor: 15 testes do protocolo 2 (código curto, várias transmissões, troca de dono, queda e retomada);
+  - `tests/sports-aureon.test.mjs`: destaque, tempo de jogo, datas, leitor do vlr.gg e cenas do clima;
+  - ponta a ponta com três "PCs":
+    - Ana e Bia transmitem ao mesmo tempo e Caio assiste as duas;
+    - troca de tela e de qualidade;
+    - queda do servidor, troca de dono, encerramento e limpeza;
+    - 26 verificações passando;
+  - TURN forçado: passou.
+  - No total, 71 testes unitários.
+  - Os widgets de esportes foram conferidos no Electron com dados reais da ESPN e do vlr.gg.
+- **Não testado em hardware real:** a abertura sobre a área de trabalho do Windows e a transmissão em grupo entre redes diferentes. Entre redes diferentes vale o mesmo TURN de antes.
+
 
 ## 0.4.0 (pedido do usuário: revisar design e cantos, notch bem preto e branco, animações fluidas e leves)
 

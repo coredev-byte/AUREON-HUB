@@ -39,6 +39,7 @@ export default function NotchPage() {
       <Section title="Comportamento">
         <Setting title="Mostrar o notch"><Switch label="Mostrar o notch" checked={ns.enabled} onChange={(v) => set({ enabled: v })} /></Setting>
         <Setting title="Monitores"><Segmented label="Monitores" value={ns.displays} onChange={(v) => set({ displays: v })} options={[{ value: "primary", label: "Só o principal" }, { value: "all", label: "Todos" }]} /></Setting>
+        <Setting title="Animação de abertura" desc="Ao iniciar o Aureon, a logo aparece e se transforma no notch."><Switch label="Animação de abertura" checked={ns.intro !== false} onChange={(v) => set({ intro: v })} /></Setting>
         <Setting title="Abrir ao passar o mouse" desc="Desligado: abre só com clique ou com o atalho."><Switch label="Abrir ao passar o mouse" checked={ns.hoverExpand} onChange={(v) => set({ hoverExpand: v })} /></Setting>
         <Setting title="Tempo até abrir" desc="Evita abrir sem querer quando o mouse só passa pelo topo."><Slider label="Tempo até abrir" min={0} max={800} step={20} value={ns.hoverDelay} onChange={(v) => set({ hoverDelay: v })} format={(v) => v + " ms"} /></Setting>
         <Setting title="Atalho" desc={<>Abre e fecha o notch: <span className="kbd">Ctrl</span> <span className="kbd">Alt</span> <span className="kbd">Espaço</span>. Não usa nem altera atalhos do Windows.</>}><Switch label="Atalho" checked={s.hotkeyOn} onChange={(v) => void patch("settings", { hotkeyOn: v })} /></Setting>

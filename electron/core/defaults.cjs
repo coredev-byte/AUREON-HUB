@@ -54,6 +54,8 @@ const DEFAULTS = {
     notifications: true,
     /** mostra uma pílula mínima (sem cliques) sobre aplicativos em tela cheia enquanto transmite */
     fullscreenIndicator: true,
+    /** animação de abertura (logo que vira o notch) ao iniciar o app */
+    intro: true,
   },
   widgets: {
     enabled: true,

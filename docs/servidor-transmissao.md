@@ -2,10 +2,13 @@
 
 A transmissão do Aureon Hub precisa de dois serviços:
 
-1. **Sinalização** (`server/`, obrigatório): um servidor WebSocket pequeno (Node + `ws`). Ele cria as salas, confere os convites, repassa as mensagens de conexão e gera credenciais TURN temporárias. **Vídeo e áudio não passam por ele.**
+1. **Sinalização** (`server/`, obrigatório): um servidor WebSocket pequeno (Node + `ws`). Ele cria as salas, confere os códigos, repassa as mensagens de conexão e gera credenciais TURN temporárias. **Vídeo e áudio não passam por ele.**
+   - Versão 2.0 (protocolo 2), exigida pelo Aureon Hub 0.5 ou mais novo. A sala funciona como um canal de voz: várias pessoas entram, qualquer uma pode transmitir a própria tela e cada uma escolhe o que assistir.
 2. **TURN** (coturn, recomendado): retransmite a mídia quando a rede de alguém bloqueia a conexão direta (CGNAT rígido, empresa, escola). Sem TURN, a transmissão funciona na maioria das redes domésticas, mas não em todas.
 
-Quem transmite e quem assiste precisam configurar o **mesmo** endereço em *Transmissão › Servidor e conexão*.
+Todo mundo na sala precisa configurar o **mesmo** endereço em *Transmissão › Servidor e conexão*.
+
+> **Atualizando da versão 1.x:** publique de novo a pasta `server/` (no Render, "Manual Deploy › Deploy latest commit", se o deploy automático estiver desligado). Confira em `/health`: deve aparecer `"version":"2.0.0","protocol":2`. Apps 0.4 ou mais antigos não entram em salas do servidor 2.0.
 
 ## Variáveis de ambiente (sinalização)
 
@@ -13,7 +16,7 @@ Quem transmite e quem assiste precisam configurar o **mesmo** endereço em *Tran
 |---|---|---|
 | `PORT` | 8787 | Porta HTTP/WebSocket (`/ws` para o app, `/health` para verificação). |
 | `TRUST_PROXY` | 0 | `1` atrás de proxy (Render, Fly): usa `X-Forwarded-For` para limitar tentativas por IP. |
-| `MAX_VIEWERS` | 8 | Espectadores por sala. |
+| `MAX_VIEWERS` | 8 | Pessoas por sala além de quem criou. |
 | `ROOM_TTL_MIN` | 480 | Vida máxima de uma sala. |
 | `CODE_TTL_MIN` | 120 | Validade do convite para novas entradas. O transmissor pode gerar outro. |
 | `MAX_CONN_PER_IP` | 30 | Conexões simultâneas por IP. |
@@ -63,7 +66,7 @@ Não precisa de VPS. O servidor de sinalização pede à Cloudflare credenciais 
 
 Alternativa: Metered (https://www.metered.ca), com `METERED_APP` (o nome antes de `.metered.live`) e `METERED_API_KEY`.
 
-> O servidor precisa estar na versão 1.1.0 ou mais nova (a pasta `server/` desta versão). Se o Render publica a partir do seu repositório, basta enviar o código novo.
+> O servidor precisa estar na versão 2.0.0 ou mais nova (a pasta `server/` desta versão). Se o Render publica a partir do seu repositório, basta enviar o código novo.
 
 ## TURN (coturn)
 
@@ -88,14 +91,16 @@ No servidor de sinalização:
 
 ## Segurança
 
-- **Convite:** `SALA-SEGREDO` com 16 caracteres (80 bits). O servidor guarda só o hash do segredo e compara em tempo constante.
+- **Código:** `SALA-SEGREDO` curto, com 8 caracteres (ex.: `K7F2-Q9MX`). São 4 da sala e 4 do segredo (20 bits). O servidor guarda só o hash do segredo e compara em tempo constante.
+  - Por ser curto, o código depende das proteções abaixo. Por padrão, quem cuida da sala ainda aprova cada entrada. O código vence em 2 h para novas entradas e pode ser trocado a qualquer momento.
 - **Tentativas erradas:**
   - 8 erros por IP em 10 min bloqueiam aquele IP;
   - 30 erros numa mesma sala a trancam e avisam o transmissor, que pode gerar um código novo.
-- **Aprovação** de cada espectador ligada por padrão. O transmissor pode recusar, remover ou trancar a sala.
-- **Retomada:** depois de uma queda, só volta quem tem a chave de retomada. O transmissor tem 45 s; o espectador, 30 s.
+- **Aprovação** de cada pessoa ligada por padrão. Quem cuida da sala pode recusar, remover ou trancar a sala.
+- **Dono da sala:** se quem criou a sala sai ou cai por mais de 45 s, ela passa para quem entrou primeiro, junto com os pedidos pendentes. Só o dono encerra a sala para todos.
+- **Retomada:** depois de uma queda, só volta quem tem a chave de retomada. O dono tem 45 s; os outros, 30 s. As telas abertas continuam durante a queda, porque o vídeo vai direto entre os PCs.
 - **Mensagens:**
-  - espectadores só falam com o transmissor, nunca entre si;
+  - só membros aceitos trocam mensagens de conexão entre si; quem espera aprovação não fala com ninguém;
   - limite de 64 KB por mensagem e de 60 mensagens por segundo por conexão.
 - **Criptografia:** a mídia vai em WebRTC (DTLS-SRTP). A sinalização deve usar `wss://`, ou seja, TLS no proxy ou na plataforma.
 - **O servidor não grava nada**, não tem banco de dados e esquece tudo ao reiniciar.

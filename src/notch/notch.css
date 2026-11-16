@@ -3,7 +3,7 @@
    Desempenho: só o contorno muda de tamanho; o conteúdo aberto tem tamanho fixo (não recalcula a cada quadro)
    e entra com opacidade/transform, que a GPU anima sem repintar. */
 .notch-stage { position: fixed; inset: 0; display: flex; justify-content: center; align-items: flex-start; pointer-events: none; }
-.notch-zoom { transform-origin: top center; }
+.notch-zoom { transform-origin: top center; position: relative; z-index: 1; }
 .notch {
   --nbg: var(--notch-bg, #000); --ear: 11px;
   /* abrir: mola curta (passa um pouco e assenta); fechar: direto, sem quicar */
@@ -101,3 +101,26 @@
 
 /* botões dentro do notch: sem a borda/fundo padrão do navegador (o notch não usa o reset do Tailwind) */
 @layer base { .notch button { border: 0; background: transparent; padding: 0; color: inherit; } }
+
+/* ───────── abertura: logo -> fitas de luz -> notch (Intro.tsx) ───────── */
+.intro { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+.intro-logo { position: absolute; left: 50%; top: 250px; width: 128px; margin-left: -64px; filter: drop-shadow(0 0 22px rgba(30, 139, 255, 0.55)); opacity: 0; animation: introLogo 1500ms cubic-bezier(0.2, 0.9, 0.25, 1) both; will-change: transform, opacity; }
+@keyframes introLogo {
+  0% { opacity: 0; transform: translateY(14px) scale(0.86); }
+  30% { opacity: 1; transform: none; }
+  62% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-46px) scale(0.78); }
+}
+.intro-ribbons { position: absolute; left: 50%; top: 0; width: 960px; height: 440px; margin-left: -480px; overflow: visible; }
+.rib { stroke-dasharray: 1 1; stroke-dashoffset: 1; animation: ribRise 1500ms cubic-bezier(0.45, 0, 0.2, 1) 520ms both; }
+.rib-b, .rib-b-glow { animation-delay: 620ms; }
+.rib-haze { opacity: 0.22; }
+.rib-b-glow { opacity: 0.45; }
+/* sobe desenhando e a cauda vai junto até sumir dentro do notch */
+@keyframes ribRise { 0% { stroke-dashoffset: 1; } 55% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -1; } }
+/* o notch nasce estreito no topo e abre até o tamanho normal, com um contorno de luz que apaga */
+.notch[data-intro="true"] { animation: notchForm 760ms cubic-bezier(0.34, 1.32, 0.5, 1) 1300ms both; transform-origin: 50% 0; }
+@keyframes notchForm { 0% { opacity: 0; transform: scale(0.12, 0.25); } 35% { opacity: 1; } 100% { opacity: 1; transform: none; } }
+.notch[data-intro="true"] .notch-shadow { opacity: 1; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5), 0 0 26px rgba(120, 175, 255, 0.55); animation: notchRim 1100ms ease-out 1700ms both; }
+@keyframes notchRim { to { opacity: 0; } }
+.notch[data-intro="true"] .notch-content { animation-delay: 1800ms; }

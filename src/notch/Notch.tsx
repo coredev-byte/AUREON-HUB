@@ -11,10 +11,12 @@ import type { MediaSession, Notice, SharePublic, Weather, WeatherKind } from "@/
 import { initial, reduce, sizeOf, type Mode, type NotchState, type Tab } from "./machine"
 import { CarbonoMediaTab } from "./CarbonoMedia"
 import { useCoverArt } from "@/shared/coverArt"
+import { INTRO_MS, Intro } from "./Intro"
 
 const params = new URLSearchParams(location.search)
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 const IS_PRIMARY = params.get("primary") !== "0"
+const WANT_INTRO = params.get("intro") === "1" && !matchMedia("(prefers-reduced-motion: reduce)").matches
 
 export function NotchApp() {
   const settings = useSection("settings")
@@ -28,6 +30,10 @@ export function NotchApp() {
   const session = rawSession ? { ...rawSession, art: coverArt } : null
   const [fsHere, setFsHere] = useState(false)
   const [s, dispatch] = useReducer(reduce, undefined, () => initial())
+  // abertura: uma vez, e nunca com "reduzir animações"
+  const [intro, setIntro] = useState(WANT_INTRO)
+  useEffect(() => { if (!intro) return; const t = setTimeout(() => setIntro(false), INTRO_MS); return () => clearTimeout(t) }, [intro])
+  useEffect(() => { if (settings?.reduceMotion) setIntro(false) }, [settings?.reduceMotion])
 
   // contexto vindo de fora (transmissão, mídia, configurações, tela cheia)
   const hosting = !!share.active && share.role === "host"
@@ -82,9 +88,10 @@ export function NotchApp() {
   const style = { "--w": size.w + "px", "--h": size.h + "px", "--r": size.r + "px" } as CSSProperties
   return (
     <div className="notch-stage">
+      {intro && <Intro />}
       <div className="notch-zoom" style={{ transform: `scale(${ns.scale})` }}>
         <div
-          ref={shape} className="notch" data-mode={fsHere ? "fullscreen" : s.mode} data-grow={grow} style={style}
+          ref={shape} className="notch" data-mode={fsHere ? "fullscreen" : s.mode} data-grow={grow} data-intro={intro} style={style}
           role="region" aria-label="Notch do Aureon"
           onClick={(e) => { if ((e.target as HTMLElement).closest("button,[data-noclick]")) return; dispatch({ type: "click" }) }}
           onContextMenu={(e) => { e.preventDefault(); void invoke("notch:menu") }}

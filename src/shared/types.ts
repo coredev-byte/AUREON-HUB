@@ -14,7 +14,7 @@ export interface Settings {
 }
 export interface NotchSettings {
   enabled: boolean; displays: "primary" | "all"; idleClock: boolean; hoverExpand: boolean; hoverDelay: number
-  scale: number; showMedia: boolean; mediaSource: string; notifications: boolean; fullscreenIndicator: boolean
+  scale: number; showMedia: boolean; mediaSource: string; notifications: boolean; fullscreenIndicator: boolean; intro: boolean
 }
 export interface WidgetsSettings { enabled: boolean; activeProfile: string; hideFullscreen: boolean; editMode: boolean }
 export type WidgetType = "clock" | "weather" | "media" | "system" | "games" | "pet" | "note" | "cs2" | "valorant" | "football" | "team" | "valagent"
