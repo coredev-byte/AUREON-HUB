@@ -37,17 +37,21 @@ jobs:
         run: |
           $setup = Get-ChildItem release -Filter "AureonHub-Setup-*.exe" | Select-Object -First 1
           Start-Process $setup.FullName -ArgumentList "/S" -Wait
-          $exe = Join-Path $env:LOCALAPPDATA "Programs\aureon-hub\Aureon Hub.exe"
-          if (-not (Test-Path $exe)) { throw "não instalou em $exe" }
+          Start-Sleep 3
+          # o instalador por usuário usa %LOCALAPPDATA%\Programs\<nome>; procura em vez de adivinhar o nome da pasta
+          $exe = Get-ChildItem (Join-Path $env:LOCALAPPDATA "Programs"), $env:ProgramFiles -Recurse -Filter "Aureon Hub.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { throw "não instalou (Aureon Hub.exe não encontrado)" }
+          Write-Host "Instalado em $($exe.DirectoryName)"
           $env:AUREON_SMOKE = "1"; $env:AUREON_SMOKE_OUT = Join-Path $env:RUNNER_TEMP "smoke.json"; $env:AUREON_DATA_DIR = Join-Path $env:RUNNER_TEMP "dados"
-          Start-Process $exe -Wait
+          Start-Process $exe.FullName -Wait
           $r = Get-Content $env:AUREON_SMOKE_OUT | ConvertFrom-Json
           $r | ConvertTo-Json -Depth 5
           if (-not $r.ok) { throw "o app abriu com erros" }
-          $un = Join-Path $env:LOCALAPPDATA "Programs\aureon-hub\Uninstall Aureon Hub.exe"
-          Start-Process $un -ArgumentList "/S" -Wait
-          Start-Sleep 5
-          if (Test-Path $exe) { throw "não desinstalou" }
+          $un = Get-ChildItem $exe.DirectoryName -Filter "Uninstall*.exe" | Select-Object -First 1
+          Start-Process $un.FullName -ArgumentList "/S" -Wait
+          Start-Sleep 8
+          if (Test-Path $exe.FullName) { throw "não desinstalou" }
+          Write-Host "Instalou, abriu sem erros e desinstalou."
       - uses: actions/upload-artifact@v4
         with:
           name: AureonHub-Setup
