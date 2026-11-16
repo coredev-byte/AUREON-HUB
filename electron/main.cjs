@@ -21,6 +21,7 @@ const { fetchSafeText } = require("./integrations/widgy/net-guard.cjs")
 const sportsMod = require("./integrations/widgy/sports.cjs")
 const teamsMod = require("./integrations/widgy/teams.cjs")
 const valorant = require("./integrations/widgy/gamestats.cjs")
+const sysaudio = require("./integrations/widgy/sysaudio.cjs")
 
 const SMOKE = process.env.AUREON_SMOKE === "1"
 if (!SMOKE && !app.requestSingleInstanceLock()) { app.quit(); process.exit(0) }
@@ -151,6 +152,8 @@ function registerIpc() {
   sportsMod.register(fakeIpc)
   teamsMod.register(fakeIpc, sportsMod.teams)
   valorant.register(fakeIpc, () => relay)
+  // espectro do som do PC para a capa reativa do notch (só enquanto ela está na tela e tocando; nada é gravado)
+  sysaudio.register(fakeIpc, () => ({ ...relay, isVisible: () => true, isMinimized: () => false }))
   h("fs:get", any, () => monitor.get())
 
   h("share:sources", need("main"), () => capture.sources())
@@ -287,6 +290,6 @@ app.on("window-all-closed", (e) => e.preventDefault())
 app.on("before-quit", () => {
   quitting = true
   globalShortcut.unregisterAll()
-  monitor?.stop(); media?.stop(); updates?.stop(); system?.stop(); weather?.stop()
+  monitor?.stop(); media?.stop(); updates?.stop(); sysaudio.stop(); system?.stop(); weather?.stop()
   store?.flush()
 })

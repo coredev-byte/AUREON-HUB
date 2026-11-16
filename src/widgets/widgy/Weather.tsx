@@ -191,7 +191,7 @@ export function WeatherWidget({ w }: { w: Widget }) {
 
   return (
     <div className="relative isolate flex h-full w-full flex-col overflow-hidden text-white" style={{ borderRadius: "inherit", textShadow: "0 1px 5px rgba(2,18,43,.14)" }}>
-      <SkyBackdrop code={wx?.code ?? 2} day={wx?.isDay ?? true} />
+      {w.config.sky !== false && <SkyBackdrop code={wx?.code ?? 2} day={wx?.isDay ?? true} />}
       <div className="relative z-[1] flex h-full min-h-0 flex-col" style={{ padding: tight ? "10px 12px" : "14px 17px" }}>
         <div className="flex shrink-0 items-start justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">

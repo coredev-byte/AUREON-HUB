@@ -108,7 +108,8 @@ export function reduce(s: NotchState, e: NotchEvent): NotchState {
     case "collapse":
       return s.mode === "expanded" && !s.pointer ? next({ ...s, pinned: false }) : s
     case "click":
-      if (s.mode === "expanded") return { ...s, mode: base(s.ctx), pinned: false, timer: null }
+      // clique dentro do painel aberto (num espaço vazio) não fecha: fecha ao tirar o mouse ou pelo atalho
+      if (s.mode === "expanded") return s.pinned ? s : { ...s, pinned: true, timer: null }
       if (s.mode === "alert") return s
       return { ...s, mode: "expanded", pinned: true, timer: null, tab: s.mode === "sharing" ? "share" : s.mode === "media" ? "media" : s.mode === "notification" ? "activity" : s.tab, notice: null }
     case "toggle":
@@ -143,6 +144,6 @@ export function sizeOf(mode: Mode, opts: { idleClock: boolean; fullscreen: boole
     case "sharing": return { w: 296, h: 36, r: 18 }
     case "notification": return { w: 430, h: 74, r: 26 }
     case "alert": return { w: 430, h: 68, r: 24 }
-    case "expanded": return { w: 740, h: 316, r: 30 }
+    case "expanded": return { w: 860, h: 336, r: 30 }
   }
 }

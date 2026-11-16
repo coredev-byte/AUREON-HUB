@@ -2,6 +2,8 @@
 // e para quando ninguém mais está olhando. Nada fica rodando à toa.
 import { useEffect, useState, useSyncExternalStore } from "react"
 import { invoke, on } from "./bridge"
+import { livePosition } from "./mediaTime"
+export { livePosition }
 import type { FullscreenState, GamesState, MediaSession, MediaState, Notice, SharePublic, SystemState, Weather } from "./types"
 
 /** fonte de dados com assinatura sob demanda */
@@ -57,14 +59,12 @@ export function useMedia(filter = "") {
   const st = useMediaState()
   return { session: pickSession(st.sessions, filter), state: st }
 }
-/** posição atual da música, andando sozinha entre as leituras do Windows */
-export function useMediaPosition(s: MediaSession | null) {
-  const now = useNow(s?.playing ? 500 : 0)
-  if (!s) return 0
-  const extra = s.playing ? (now.getTime() - s.at) / 1000 : 0
-  return Math.min(s.dur || Infinity, s.pos + Math.max(0, extra))
+/** posição atual da música, andando sozinha (stepMs: de quanto em quanto tempo re-renderiza) */
+export function useMediaPosition(s: MediaSession | null, stepMs = 500) {
+  const now = useNow(s?.playing ? stepMs : 0)
+  return s ? livePosition(s, now.getTime()) : 0
 }
-export const mediaCommand = (cmd: "toggle" | "next" | "prev" | "seek", app: string, arg?: number) => invoke("media:cmd", cmd, app, arg)
+export const mediaCommand = (cmd: "toggle" | "next" | "prev" | "seek" | "shuffle" | "repeat", app: string, arg?: number | boolean) => invoke("media:cmd", cmd, app, arg)
 
 /**
  * Relógio alinhado ao passo (um re-render por segundo/minuto, não 60 por segundo). step 0 = parado.

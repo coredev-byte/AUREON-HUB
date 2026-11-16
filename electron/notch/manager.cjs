@@ -4,7 +4,7 @@
 const { BrowserWindow, screen } = require("electron")
 const windows = require("../core/windows.cjs")
 
-const BASE_W = 880, BASE_H = 420
+const BASE_W = 960, BASE_H = 440
 
 /** retângulo da janela do notch para um monitor (centralizada no topo, na escala escolhida) */
 function geometry(display, scale = 1) {

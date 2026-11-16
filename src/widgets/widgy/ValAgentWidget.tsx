@@ -47,7 +47,7 @@ export interface ValLook {
   image: "full" | "bust" | "icon" | "custom" | "none"
   customId?: string
   imgScale: number; imgX: number; imgY: number; flip: boolean
-  bg: "gradient" | "color" | "art" | "custom" | "map" | "randomMap"
+  bg: "gradient" | "color" | "art" | "custom" | "map" | "randomMap" | "none"
   bgColor: string; c1?: string; c2?: string; customBgId?: string; artOpacity: number
   /** fundo de mapa oficial: qual mapa, qual imagem e como ela aparece */
   mapId?: string; mapFollow: boolean; mapImage: MapImage
@@ -183,7 +183,7 @@ export function ValAgentWidget({ w }: { w: Widget }) {
   return (
     <div ref={box} className="relative h-full w-full overflow-hidden text-white" data-valagent={a.displayName}>
       {/* fundo */}
-      <div className="absolute inset-0" style={{ background: L.bg === "color" ? L.bgColor : `linear-gradient(160deg, ${g1}, ${g2})` }} />
+      {L.bg !== "none" && <div className="absolute inset-0" style={{ background: L.bg === "color" ? L.bgColor : `linear-gradient(160deg, ${g1}, ${g2})` }} />}
       {L.bg === "art" && <img src={a.background} className="absolute inset-0 h-full w-full object-cover" style={{ opacity: L.artOpacity, mixBlendMode: "screen" }} draggable={false} />}
       {L.bg === "custom" && customBg && <img src={mediaUrl(customBg.file)} className="absolute inset-0 h-full w-full object-cover" draggable={false} />}
       {map && <MapBackground map={map} L={L} g1={g1} g2={g2} />}
@@ -392,6 +392,7 @@ export function ValBackgroundSettings({ w, set }: { w: Widget; set: (p: Record<s
             { value: "custom", label: "Sua imagem", preview: <ImagePlus size={16} className="opacity-80" /> },
             { value: "map", label: "Mapa", preview: <MapGlyph /> },
             { value: "randomMap", label: "Mapa aleatório", preview: <MapGlyph dice /> },
+            { value: "none", label: "Sem fundo", preview: <span className="block h-6 w-[80%] rounded-[5px] border border-dashed border-white/30" /> },
           ]} />
         </Row>
         {(L.bg === "gradient" || L.bg === "art" || usesMap) && (

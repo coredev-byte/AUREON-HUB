@@ -23,8 +23,10 @@ export interface WidgetInstance {
   x: number; y: number; w: number; h: number
   opacity: number; locked: boolean; enabled: boolean
   font: "inter" | "grotesk" | "mono"; color: string
+  bg?: WidgetBg; textColor?: string
   config: Record<string, unknown>
 }
+export type WidgetBg = "default" | "glass" | "solid" | "none"
 export interface Profile { id: string; name: string; widgets: WidgetInstance[] }
 export interface ShareSettings { quality: "auto" | "eco" | "balanced" | "quality"; audio: boolean; approval: boolean; preferHardware: boolean; name: string }
 export interface AppState {
@@ -35,6 +37,9 @@ export type Section = keyof AppState
 export interface MediaSession {
   app: string; title: string; artist: string; album: string; playing: boolean; pos: number; dur: number
   art: string | null; primary: boolean; canNext?: boolean; canPrev?: boolean; canSeek?: boolean; at: number
+  /** quando o Windows atualizou a posição (ms desde 1970); 0 se o player não informa */
+  upd?: number
+  shuffle?: boolean; repeat?: number; canShuffle?: boolean; canRepeat?: boolean
 }
 export interface MediaState { supported: boolean; error: string; sessions: MediaSession[] }
 

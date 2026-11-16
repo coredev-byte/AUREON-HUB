@@ -58,7 +58,7 @@ function browserBridge(): Native {
     "games:get": () => ({ current: null, history: [] }),
     "net:text": async (url: string) => (await fetch(url)).text(),
     "sports:get": async () => [], "sports:teams": async () => [], "team:search": async () => [], "team:card": async () => null,
-    "valorant:agent": () => null,
+    "valorant:agent": () => null, "sysaudio:viz": () => ({ ok: false }),
     "fs:get": () => ({ fs: false, exe: "", displayId: null, quns: 0, since: Date.now(), helper: "navegador" }),
     "share:sources": () => [{ id: "screen:0:0", name: "Tela inteira", kind: "screen", displayId: "0", thumb: "", icon: "" }],
     "share:select": () => ({ ok: true, audioSupported: false }),

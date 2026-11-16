@@ -36,3 +36,12 @@
 /* widgets que desenham o próprio fundo (portados do Widgy: clima, time, agente do Valorant) */
 .wg-bare { background: transparent; border-color: transparent; backdrop-filter: none; box-shadow: none; }
 .wg-bare.wg-edit { background: transparent; }
+
+/* fundo escolhido por widget */
+.wg-bg-glass { background: color-mix(in srgb, var(--bg) 52%, transparent); backdrop-filter: blur(22px) saturate(1.25); border-color: rgba(255, 255, 255, 0.1); }
+.wg-bg-solid { background: var(--bg); backdrop-filter: none; }
+.wg-bg-none { background: transparent; backdrop-filter: none; border-color: transparent; box-shadow: none; }
+/* sem fundo: uma sombra leve no texto mantém a leitura sobre qualquer papel de parede */
+.wg-bg-none .wg-body, .wg-bg-none .wg-note, .wg-bg-none canvas { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 12px rgba(0, 0, 0, 0.25); }
+.wg-bg-none .wg-bar { background: rgba(255, 255, 255, 0.18); }
+.wg-edit.wg-bg-none { background: rgba(255, 255, 255, 0.04); }

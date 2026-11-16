@@ -85,3 +85,16 @@ test("avisos: só campos conhecidos, imagens só data: pequenas", () => {
 test("CPU: uso entre duas leituras", () => {
   assert.equal(cpuUsage([{ idle: 0, total: 0 }], [{ idle: 50, total: 100 }]), 50)
 })
+
+test("widget: fundo e cor do texto validados", () => {
+  const ok = defaults.sanitizeWidget({ id: "w-aaaaaaaa", type: "clock", bg: "glass", textColor: "#FFFFFF", config: {} })
+  assert.equal(ok.bg, "glass")
+  assert.equal(ok.textColor, "#FFFFFF")
+  const bad = defaults.sanitizeWidget({ id: "w-bbbbbbbb", type: "media", bg: "neon", textColor: "red", config: {} })
+  assert.equal(bad.bg, "default")
+  assert.equal(bad.textColor, "")
+})
+test("leitor de mídia informa o instante da posição (sincronia das letras)", () => {
+  const { PS } = require("../electron/integrations/media.cjs")
+  assert.match(PS, /upd = \[long\]\$timeline\.LastUpdatedTime\.ToUnixTimeMilliseconds\(\)/)
+})

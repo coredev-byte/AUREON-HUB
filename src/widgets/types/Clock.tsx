@@ -27,7 +27,7 @@ export default function Clock({ w, paused }: WidgetProps) {
       <div className="wg-big" style={{ fontSize: fit }}>
         {hm}{seconds && <span style={{ fontSize: fit * 0.42, color: "var(--muted)", marginLeft: 6 }}>{String(now.getSeconds()).padStart(2, "0")}</span>}
       </div>
-      {showDate && <div style={{ marginTop: 8, color: "var(--muted)", fontSize: Math.max(11, Math.min(14, w.w / 22)) }} className="truncate">{date}</div>}
+      {showDate && <div style={{ marginTop: 8, color: w.color ? "var(--accent)" : "var(--muted)", fontSize: Math.max(11, Math.min(14, w.w / 22)) }} className="truncate">{date}</div>}
     </div>
   )
 }

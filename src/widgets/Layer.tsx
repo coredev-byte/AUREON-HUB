@@ -126,10 +126,11 @@ function Frame({ w, editing, paused, area }: { w: WidgetInstance; editing: boole
   const style = {
     left: r.x, top: r.y, width: r.w, height: r.h, opacity: w.opacity,
     ...(w.color ? { "--accent": w.color } : {}),
+    ...(w.textColor ? { "--fg": w.textColor, "--muted": `color-mix(in srgb, ${w.textColor} 68%, transparent)`, "--dim": `color-mix(in srgb, ${w.textColor} 45%, transparent)`, color: w.textColor } : {}),
   } as CSSProperties
   const C = def.component
   return (
-    <div className={"wg font-" + w.font + (def.bare ? " wg-bare" : "") + (editing ? " wg-edit" : "") + (w.locked ? " wg-locked" : "")} style={style}
+    <div className={"wg font-" + w.font + (def.bare ? " wg-bare" : " wg-bg-" + (w.bg ?? "default")) + (editing ? " wg-edit" : "") + (w.locked ? " wg-locked" : "")} style={style}
       data-interactive={editing || def.interactive ? "true" : "false"} onPointerDown={drag("move")} aria-label={def.name}>
       <Isolate name={def.name}>
         <Suspense fallback={null}>

@@ -4,11 +4,13 @@ import {
   MonitorUp, Moon, Music2, Pause, Pencil, Play, Radio, Repeat, Snowflake, SkipBack, SkipForward, Sun, Trash2, TriangleAlert, Users, X,
 } from "lucide-react"
 import { invoke, on } from "@/shared/bridge"
-import { appLabel, fmtTime, mediaCommand, useMedia, useMediaPosition, useNotices, useNow, useSharePublic, useWeather } from "@/shared/hooks"
+import { appLabel, fmtTime, mediaCommand, useMedia, useNotices, useNow, useSharePublic, useWeather } from "@/shared/hooks"
 import { patch, useSection } from "@/shared/state"
 import { fmtClock, useTheme } from "@/shared/theme"
 import type { MediaSession, Notice, SharePublic, Weather, WeatherKind } from "@/shared/types"
 import { initial, reduce, sizeOf, type Mode, type NotchState, type Tab } from "./machine"
+import { CarbonoMediaTab } from "./CarbonoMedia"
+import { useCoverArt } from "@/shared/coverArt"
 
 const params = new URLSearchParams(location.search)
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
@@ -20,7 +22,10 @@ export function NotchApp() {
   const widgets = useSection("widgets")
   useTheme(settings)
   const share = useSharePublic()
-  const { session } = useMedia(ns?.mediaSource ?? "")
+  const { session: rawSession } = useMedia(ns?.mediaSource ?? "")
+  // capa do Windows ou, se o player não entregar, a reserva (iTunes/Deezer só com título e artista iguais)
+  const coverArt = useCoverArt(rawSession)
+  const session = rawSession ? { ...rawSession, art: coverArt } : null
   const [fsHere, setFsHere] = useState(false)
   const [s, dispatch] = useReducer(reduce, undefined, () => initial())
 
@@ -111,7 +116,7 @@ function IdleCompact({ clock, hover }: { clock: boolean; hover: boolean }) {
   return (
     <>
       <span className="n-clock">{fmtClock(now, hour12)}</span>
-      {hover && <span style={{ color: "#8f8e95", fontSize: 11.5 }}>{now.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric" }).replace(".", "")}</span>}
+      {hover && <span style={{ color: "var(--sh-muted)", fontSize: 11.5 }}>{now.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric" }).replace(".", "")}</span>}
     </>
   )
 }
@@ -194,7 +199,7 @@ function Panel({ tab, dispatch, share, media, widgetsOn }: { tab: Tab; dispatch:
       </div>
       <div key={tab} className="grow fade-in" style={{ minHeight: 0 }}>
         {tab === "now" && <NowTab media={media} />}
-        {tab === "media" && <MediaTab m={media} />}
+        {tab === "media" && <CarbonoMediaTab />}
         {tab === "share" && <ShareTab share={share} />}
         {tab === "activity" && <ActivityTab />}
       </div>
@@ -217,24 +222,24 @@ function NowTab({ media }: { media: MediaSession | null }) {
     <div style={{ display: "grid", gridTemplateColumns: "190px 200px 1fr", gap: 10, height: "100%" }}>
       <div className="n-card col" style={{ justifyContent: "center", gap: 2 }}>
         <div className="num" style={{ fontSize: 46, fontWeight: 500, lineHeight: 1, letterSpacing: "-0.03em" }}>{fmtClock(now, hour12)}</div>
-        <div style={{ color: "#8f8e95", fontSize: 12 }}>{cap(now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }))}</div>
+        <div style={{ color: "var(--sh-muted)", fontSize: 12 }}>{cap(now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }))}</div>
       </div>
       <div className="n-card col" style={{ justifyContent: "center", gap: 6 }}>
         {ok ? (
           <>
             <div className="row" style={{ gap: 10 }}><WeatherIcon w={ok} size={26} /><span className="num" style={{ fontSize: 30, fontWeight: 500 }}>{Math.round(ok.temp)}°</span></div>
             <div style={{ fontSize: 12 }}>{ok.label}</div>
-            <div style={{ fontSize: 11, color: "#8f8e95" }} className="truncate">{ok.city}{ok.days[0] ? ` · ${Math.round(ok.days[0].min)}° / ${Math.round(ok.days[0].max)}°` : ""}</div>
+            <div style={{ fontSize: 11, color: "var(--sh-muted)" }} className="truncate">{ok.city}{ok.days[0] ? ` · ${Math.round(ok.days[0].min)}° / ${Math.round(ok.days[0].max)}°` : ""}</div>
           </>
         ) : (
           <>
-            <Cloud size={22} color="#6a6970" />
-            <div style={{ fontSize: 12, color: "#a3a2a8" }}>{w && "error" in w && w.error ? w.error : "Carregando clima…"}</div>
+            <Cloud size={22} color="var(--sh-dim)" />
+            <div style={{ fontSize: 12, color: "var(--sh-muted)" }}>{w && "error" in w && w.error ? w.error : "Carregando clima…"}</div>
           </>
         )}
       </div>
       <div className="n-card" style={{ display: "flex", gap: 12, alignItems: "center" }}>
-        {media ? <MiniMedia m={media} /> : <div className="col" style={{ gap: 4, color: "#8f8e95", fontSize: 12 }}><Music2 size={20} />Nada tocando. Abra o Spotify, YouTube Music ou outro player.</div>}
+        {media ? <MiniMedia m={media} /> : <div className="col" style={{ gap: 4, color: "var(--sh-muted)", fontSize: 12 }}><Music2 size={20} />Nada tocando. Abra o Spotify, YouTube Music ou outro player.</div>}
       </div>
     </div>
   )
@@ -243,9 +248,9 @@ function NowTab({ media }: { media: MediaSession | null }) {
 function MiniMedia({ m }: { m: MediaSession }) {
   return (
     <>
-      {m.art ? <img src={m.art} alt="" style={{ width: 84, height: 84, borderRadius: 12, objectFit: "cover", flex: "none" }} /> : <div style={{ width: 84, height: 84, borderRadius: 12, background: "#1d1d20", display: "grid", placeItems: "center", flex: "none" }}><Music2 size={22} /></div>}
+      {m.art ? <img src={m.art} alt="" style={{ width: 84, height: 84, borderRadius: 12, objectFit: "cover", flex: "none" }} /> : <div style={{ width: 84, height: 84, borderRadius: 12, background: "var(--sh-2)", display: "grid", placeItems: "center", flex: "none" }}><Music2 size={22} /></div>}
       <div className="col grow" style={{ gap: 6, minWidth: 0 }}>
-        <div><div className="truncate" style={{ fontWeight: 600 }}>{m.title}</div><div className="truncate" style={{ color: "#8f8e95", fontSize: 12 }}>{m.artist || appLabel(m.app)}</div></div>
+        <div><div className="truncate" style={{ fontWeight: 600 }}>{m.title}</div><div className="truncate" style={{ color: "var(--sh-muted)", fontSize: 12 }}>{m.artist || appLabel(m.app)}</div></div>
         <Controls m={m} />
       </div>
     </>
@@ -262,40 +267,14 @@ function Controls({ m, big }: { m: MediaSession; big?: boolean }) {
   )
 }
 
-function MediaTab({ m }: { m: MediaSession | null }) {
-  const pos = useMediaPosition(m)
-  if (!m) return <div className="n-card col" style={{ height: "100%", justifyContent: "center", alignItems: "center", color: "#8f8e95", fontSize: 12.5, textAlign: "center" }}><Music2 size={24} />Nenhum player com música agora.<span style={{ fontSize: 11.5 }}>Spotify, YouTube Music, Deezer e navegadores aparecem aqui sozinhos (controles de mídia do Windows).</span></div>
-  const pct = m.dur ? Math.min(100, (pos / m.dur) * 100) : 0
-  return (
-    <div className="n-card" style={{ display: "flex", gap: 18, height: "100%", alignItems: "center", padding: 16 }}>
-      {m.art ? <img src={m.art} alt="" style={{ width: 160, height: 160, borderRadius: 18, objectFit: "cover", flex: "none" }} /> : <div style={{ width: 160, height: 160, borderRadius: 18, background: "#1d1d20", display: "grid", placeItems: "center", flex: "none" }}><Music2 size={36} /></div>}
-      <div className="col grow" style={{ gap: 12, minWidth: 0 }}>
-        <div>
-          <div style={{ fontSize: 11, color: "#8f8e95", marginBottom: 2 }}>{appLabel(m.app)}</div>
-          <div className="truncate" style={{ fontSize: 17, fontWeight: 600 }}>{m.title}</div>
-          <div className="truncate" style={{ color: "#a3a2a8" }}>{[m.artist, m.album].filter(Boolean).join(" · ")}</div>
-        </div>
-        <div className="col" style={{ gap: 6 }}>
-          <div className="n-progress" role="slider" aria-label="Posição" aria-valuemin={0} aria-valuemax={Math.round(m.dur)} aria-valuenow={Math.round(pos)} data-noclick
-            onClick={(e) => { if (!m.canSeek || !m.dur) return; const r = e.currentTarget.getBoundingClientRect(); void mediaCommand("seek", m.app, ((e.clientX - r.left) / r.width) * m.dur) }}>
-            <i style={{ width: pct + "%" }} />
-          </div>
-          <div className="row num" style={{ fontSize: 11, color: "#8f8e95" }}><span>{fmtTime(pos)}</span><span className="grow" /><span>{m.dur ? fmtTime(m.dur) : "—"}</span></div>
-        </div>
-        <div className="row" style={{ justifyContent: "center" }}><Controls m={m} big /></div>
-      </div>
-    </div>
-  )
-}
-
 function ShareTab({ share }: { share: SharePublic }) {
   const now = useNow(1000)
   if (!share.active) {
     return (
       <div className="n-card col" style={{ height: "100%", justifyContent: "center", alignItems: "center", gap: 10, textAlign: "center" }}>
-        <MonitorUp size={26} color="#8f8e95" />
+        <MonitorUp size={26} color="var(--sh-muted)" />
         <div style={{ fontWeight: 600 }}>Nenhuma transmissão</div>
-        <div style={{ color: "#8f8e95", fontSize: 12, maxWidth: 380 }}>Transmita sua tela para amigos em outras redes, com convite privado. Nada começa sem você escolher a tela.</div>
+        <div style={{ color: "var(--sh-muted)", fontSize: 12, maxWidth: 380 }}>Transmita sua tela para amigos em outras redes, com convite privado. Nada começa sem você escolher a tela.</div>
         <div className="row"><button type="button" className="n-btn n-btn-primary" onClick={() => void invoke("app:open", "share")}>Transmitir tela</button><button type="button" className="n-btn" onClick={() => void invoke("app:open", "share", { tab: "watch" })}>Assistir</button></div>
       </div>
     )
@@ -304,7 +283,7 @@ function ShareTab({ share }: { share: SharePublic }) {
     return (
       <div className="n-card col" style={{ height: "100%", justifyContent: "center", gap: 8 }}>
         <div className="row"><Eye size={16} /><b>Assistindo {share.hostName || "uma transmissão"}</b></div>
-        <div style={{ color: "#8f8e95", fontSize: 12 }}>Conexão: {CONN[share.connection ?? "good"]}</div>
+        <div style={{ color: "var(--sh-muted)", fontSize: 12 }}>Conexão: {CONN[share.connection ?? "good"]}</div>
         <div className="row"><button type="button" className="n-btn" onClick={() => void invoke("app:open", "share", { tab: "watch" })}>Abrir</button><button type="button" className="n-btn n-btn-danger" onClick={() => void invoke("share:command", "leave")}>Sair</button></div>
       </div>
     )
@@ -313,7 +292,7 @@ function ShareTab({ share }: { share: SharePublic }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 220px", gap: 10, height: "100%" }}>
       <div className="n-card col" style={{ gap: 12 }}>
-        <div className="row"><span className="n-live"><span className="dot" />AO VIVO</span><span className="truncate grow" style={{ color: "#a3a2a8", fontSize: 12 }}>{share.source}</span></div>
+        <div className="row"><span className="n-live"><span className="dot" />AO VIVO</span><span className="truncate grow" style={{ color: "var(--sh-muted)", fontSize: 12 }}>{share.source}</span></div>
         <div className="row" style={{ gap: 26 }}>
           <div className="n-stat"><b>{fmtTime(elapsed)}</b><span>tempo</span></div>
           <div className="n-stat"><b>{share.viewers ?? 0}</b><span>assistindo</span></div>
@@ -328,9 +307,9 @@ function ShareTab({ share }: { share: SharePublic }) {
         </div>
       </div>
       <div className="n-card col" style={{ gap: 6 }}>
-        <div style={{ fontSize: 11, color: "#8f8e95" }}>Convite</div>
+        <div style={{ fontSize: 11, color: "var(--sh-muted)" }}>Convite</div>
         <div className="num" style={{ fontSize: 15, letterSpacing: "0.08em" }}>{share.code ?? "—"}</div>
-        <div style={{ fontSize: 11, color: "#8f8e95", marginTop: "auto" }}>{share.requests ? `${share.requests} pedido(s) para entrar: responda no aviso acima ou no painel.` : "Quem tiver o convite pede para entrar e você aprova."}</div>
+        <div style={{ fontSize: 11, color: "var(--sh-muted)", marginTop: "auto" }}>{share.requests ? `${share.requests} pedido(s) para entrar: responda no aviso acima ou no painel.` : "Quem tiver o convite pede para entrar e você aprova."}</div>
       </div>
     </div>
   )
@@ -346,15 +325,15 @@ function ActivityTab() {
   return (
     <div className="n-card col" style={{ height: "100%", gap: 0, padding: "8px 6px 8px 14px" }}>
       <div className="row" style={{ paddingRight: 6, marginBottom: 4 }}>
-        <span style={{ fontSize: 11, color: "#8f8e95" }} className="grow">{list.length ? `${list.length} aviso(s) desta sessão` : "Sem avisos nesta sessão"}</span>
+        <span style={{ fontSize: 11, color: "var(--sh-muted)" }} className="grow">{list.length ? `${list.length} aviso(s) desta sessão` : "Sem avisos nesta sessão"}</span>
         <button type="button" className="n-icon-btn" title={ns?.notifications ? "Silenciar avisos" : "Ativar avisos"} aria-label={ns?.notifications ? "Silenciar avisos" : "Ativar avisos"} onClick={() => void patch("notch", { notifications: !ns?.notifications })}>{ns?.notifications ? <Bell size={14} /> : <BellOff size={14} />}</button>
         <button type="button" className="n-icon-btn" title="Limpar" aria-label="Limpar avisos" disabled={!list.length} onClick={() => void invoke("notify:clear")}><Trash2 size={14} /></button>
       </div>
       <div className="n-list grow col" style={{ gap: 2 }}>
         {list.map((n) => (
           <div key={n.id} className="row" style={{ padding: "6px 6px 6px 0", gap: 10 }}>
-            <span className="num" style={{ fontSize: 11, color: "#6a6970", width: 38 }}>{time(n.at)}</span>
-            <div className="grow" style={{ minWidth: 0 }}><div className="truncate" style={{ fontSize: 12.5, fontWeight: 500 }}>{n.title}</div>{n.body && <div className="truncate" style={{ fontSize: 11.5, color: "#8f8e95" }}>{n.body}</div>}</div>
+            <span className="num" style={{ fontSize: 11, color: "var(--sh-dim)", width: 38 }}>{time(n.at)}</span>
+            <div className="grow" style={{ minWidth: 0 }}><div className="truncate" style={{ fontSize: 12.5, fontWeight: 500 }}>{n.title}</div>{n.body && <div className="truncate" style={{ fontSize: 11.5, color: "var(--sh-muted)" }}>{n.body}</div>}</div>
             {n.actions.length > 0 && n.actions.map((a, i) => <button key={a.id} type="button" className={"n-btn " + (i === 0 ? "n-btn-primary" : "")} onClick={() => void invoke("notify:action", n.id, a.id)}>{i === 0 ? <Check size={12} /> : <X size={12} />}</button>)}
           </div>
         ))}

@@ -21,7 +21,7 @@ const ok = (c, m) => { if (!c) throw new Error("FALHOU: " + m); console.log("ok 
     // a janela principal fica por cima no centro; o notch está no topo, acima dela
     xdo("mousemove", "960", "40"); await sleep(150)
     xdo("mousemove", "960", "12"); await sleep(1400) // passa o mouse: deve abrir
-    xdo("mousemove", "934", "30"); await sleep(300)
+    xdo("mousemove", "858", "30"); await sleep(300)
     xdo("click", "1"); await sleep(900) // aba "Atividade"
     await new Promise((r) => app.on("exit", r))
     const rep = JSON.parse(fs.readFileSync(out, "utf8"))

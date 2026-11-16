@@ -1,4 +1,34 @@
-# Relatório da reconstrução: Widgy → Aureon Hub 0.2.0
+# Relatório da reconstrução: Widgy → Aureon Hub 0.3.0
+
+## 0.3.0 (pedido do usuário: letras, mídia do Carbono, capas, fundos, cores e interface)
+
+- **Widget Música (antes "Mídia")**: agora é o player do Widgy.
+  - Formatos: adaptável, mini ou capa grande. Fundo: discreto, capa desfocada, sólido ou nenhum.
+  - Capa arredondada, quadrada ou circular. Progresso arrastável e controles.
+  - **Letra sincronizada**: a linha atual se preenche como karaokê, com a próxima embaixo. Widget alto mostra a letra inteira rolando, e clicar numa linha pula para ela.
+  - Ajuste fino de sincronia (±2 s).
+- **Sincronia de verdade**:
+  - Antes: a posição era estimada a partir da hora da leitura (a cada ~1,1 s), o que gerava até ~1 s de atraso.
+  - Agora: o leitor de mídia envia o instante exato em que o Windows mediu a posição (`LastUpdatedTime`). Teste em `tests/media-position.test.mjs`.
+- **Capas que não apareciam**: quando o player não entrega a capa ao Windows (comum no Spotify), o Aureon busca a mesma faixa no iTunes e depois no Deezer. Só aceita com título e artista iguais (regras e testes do Widgy).
+- **Aba Mídia do notch igual ao Carbono**:
+  - capa recortada girando, com a coroa que reage ao som do PC (espectro do áudio, portado do Widgy);
+  - barra de progresso em onda;
+  - aleatório e repetir;
+  - letra rolando no centro;
+  - escolha do player.
+- **Fundo por widget**:
+  - Padrão, Vidro, Sólido ou Sem fundo, com sombra no texto para continuar legível.
+  - Nos widgets com fundo próprio (Clima, Música, Time, Agente), a opção vira o ajuste equivalente de cada um.
+  - Clima pode ficar sem o céu, Time sem as cores de fundo, Agente com "Sem fundo".
+- **Cores que não funcionavam:**
+  - Uma regra genérica do tema ("botão herda a cor do texto") passava por cima das cores dos widgets do Widgy. Era por isso que o ícone de pausar ficava invisível e várias amostras de cor não mudavam nada. A regra foi para uma camada mais fraca.
+  - Por dentro, o notch usava cores fixas: a cor escolhida para o notch só mudava a borda. Agora as cores de dentro seguem a escolha.
+  - A cor de destaque de cada widget aparece de verdade (no relógio, a data muda de cor). Foi adicionada a **Cor do texto** por widget.
+- **Página Widgets reformulada:**
+  - lista à esquerda e editor à direita, com as abas Conteúdo, Aparência e Tamanho e posição;
+  - catálogo por categoria (Essenciais, Jogos e esportes, PC e diversão), com ícones e descrições.
+- **Notch:** clicar num espaço vazio do painel aberto não fecha mais o painel. Ele fecha ao tirar o mouse ou pelo atalho.
 
 ## 0.2.0 (a partir do segundo vídeo do usuário)
 

@@ -29,8 +29,11 @@ body {
 }
 body.page-index { background: var(--bg); }
 body.page-notch, body.page-widgets { background: transparent; overflow: hidden; }
-button, input, select, textarea { font: inherit; color: inherit; }
-button { cursor: pointer; }
+/* em camada baixa: as classes de cor/fonte dos widgets (Tailwind) precisam vencer esta regra genérica */
+@layer base {
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+}
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 ::selection { background: var(--accent-soft); }
 .num { font-family: var(--font-num); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }

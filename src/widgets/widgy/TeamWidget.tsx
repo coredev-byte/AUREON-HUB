@@ -253,8 +253,8 @@ export function TeamWidget({ w, onConfigure }: { w: Widget; onConfigure: () => v
 
   return (
     <div className="relative h-full w-full overflow-hidden text-white" style={{ borderRadius: "inherit", textShadow: "none" }}>
-      {/* fundo com as cores do time */}
-      <div className="pointer-events-none absolute inset-0" style={{
+      {/* fundo com as cores do time (desligável: "Sem fundo") */}
+      {c.transparent !== true && <><div className="pointer-events-none absolute inset-0" style={{
         background: `radial-gradient(120% 95% at ${wide ? "18% 30%" : "50% 18%"}, ${theme.glow} 0%, ${theme.base} 38%, ${theme.deep} 100%)`,
       }} />
       {stripes && (
@@ -272,7 +272,7 @@ export function TeamWidget({ w, onConfigure }: { w: Widget; onConfigure: () => v
       )}
       {/* brilho na borda de cima + sombra embaixo (dá volume) */}
       <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(180deg, rgb(255 255 255 / .1), transparent 22%, transparent 60%, rgb(0 0 0 / .35))" }} />
-      <div className="pointer-events-none absolute inset-0" style={{ opacity: 0.12, mixBlendMode: "overlay", backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")" }} />
+      <div className="pointer-events-none absolute inset-0" style={{ opacity: 0.12, mixBlendMode: "overlay", backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")" }} /></>}
 
       <div className={cn("relative flex h-full gap-3 p-3.5", wide ? "flex-row items-stretch" : "flex-col justify-center")}>
         {/* herói: logo + nome */}

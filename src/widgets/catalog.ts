@@ -46,12 +46,9 @@ export const CATALOG: Record<WidgetType, WidgetDef> = {
     component: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.Weather }))),
   },
   media: {
-    type: "media", name: "Mídia", desc: "Spotify, YouTube Music e outros players do Windows.", size: { w: 340, h: 140 }, min: { w: 220, h: 96 }, interactive: true,
-    fields: [{
-      key: "source", label: "Player", kind: "select", default: "",
-      options: [{ value: "", label: "Qualquer um" }, { value: "spotify", label: "Spotify" }, { value: "youtube", label: "YouTube Music" }, { value: "deezer", label: "Deezer" }, { value: "chrome", label: "Chrome" }, { value: "msedge", label: "Edge" }, { value: "firefox", label: "Firefox" }],
-    }],
-    component: lazy(() => import("./types/Media")),
+    type: "media", name: "Música", desc: "Spotify, YouTube Music e outros players do Windows, com capa e letra sincronizada.", size: { w: 380, h: 190 }, min: { w: 220, h: 96 }, interactive: true, bare: true,
+    fields: [], Settings: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.MusicOptions }))),
+    component: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.Music }))),
   },
   system: {
     type: "system", name: "Sistema", desc: "Processador e memória do PC.", size: { w: 260, h: 130 }, min: { w: 180, h: 96 }, interactive: false,

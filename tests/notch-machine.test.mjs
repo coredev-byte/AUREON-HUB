@@ -110,3 +110,11 @@ test("depois de responder um aviso com o mouse em cima, fica em hover (não abre
   assert.equal(s.mode, "hover")
   assert.equal(s.timer, null)
 })
+
+test("clique num espaço vazio do painel aberto não fecha (só fixa aberto)", () => {
+  let s = run(initial(), { type: "enter" }, { type: "hover-timeout" }, { type: "click" })
+  assert.equal(s.mode, "expanded")
+  assert.equal(s.pinned, true)
+  s = run(s, { type: "leave" }, { type: "collapse" })
+  assert.equal(s.mode, "idle")
+})

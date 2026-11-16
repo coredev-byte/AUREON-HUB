@@ -100,6 +100,9 @@ function sanitizeWidget(w) {
     enabled: w.enabled !== false,
     font: ["inter", "grotesk", "mono"].includes(w.font) ? w.font : "inter",
     color: isHex(w.color) ? w.color : "",
+    /** fundo do quadro: padrão do tema, vidro, sólido ou sem fundo */
+    bg: ["default", "glass", "solid", "none"].includes(w.bg) ? w.bg : "default",
+    textColor: isHex(w.textColor) ? w.textColor : "",
     config,
   }
 }

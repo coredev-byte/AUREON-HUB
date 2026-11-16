@@ -4,6 +4,7 @@
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities) source(none);
 @source "../widgets/widgy";
+@source "../notch";
 
 @theme inline {
   --color-fg: var(--fg);
@@ -34,3 +35,4 @@
 :where(.widgy, .widgy-settings) :where(h1, h2, h3, h4, h5, h6) { font-size: inherit; font-weight: inherit; }
 :where(.widgy, .widgy-settings) :where(ol, ul) { list-style: none; }
 }
+@keyframes lyIn { from { opacity: 0; transform: translateY(6px); filter: blur(2px); } }
