@@ -62,7 +62,7 @@ function browserBridge(): Native {
       return u ? { kind: "image", url: u, style: "fill", width: 1920, height: 1080, color: null } : { kind: "none", reason: "O papel de parede é lido pelo app desktop." }
     },
     "net:text": async (url: string) => (await fetch(url)).text(),
-    "sports:get": async () => [], "sports:teams": async () => [], "team:search": async () => [], "team:card": async () => null,
+    "sports:get": async () => [], "sports:teams": async () => [], "sports:standings": async () => null, "sports:basket": async () => [], "sports:f1": async () => [], "sports:match": async () => null, "team:search": async () => [], "team:card": async () => null,
     "valorant:agent": () => null, "sysaudio:viz": () => ({ ok: false }),
     "fs:get": () => ({ fs: false, exe: "", displayId: null, quns: 0, since: Date.now(), helper: "navegador" }),
     "share:sources": () => [{ id: "screen:0:0", name: "Tela inteira", kind: "screen", displayId: "0", thumb: "", icon: "" }],

@@ -166,10 +166,11 @@ function Frame({ w, editing, paused, area, glass }: { w: WidgetInstance; editing
   const C = def.component
   const bg = w.bg ?? "default"
   // vidro: sempre; padrão: quando há desfoque e o fundo não é totalmente opaco
-  const glassBlur = def.bare ? -1 : bg === "glass" ? Math.max(12, glass.blur) : bg === "default" && glass.blur > 0 && !glass.solid ? glass.blur : -1
+  const bare = !!def.bare || !!def.bareWhen?.(w)
+  const glassBlur = bare && !(def.glassable && bg === "glass") ? -1 : bg === "glass" ? Math.max(12, glass.blur) : bg === "default" && glass.blur > 0 && !glass.solid ? glass.blur : -1
   const hasGlass = glassBlur >= 0 && !!glass.wp && glass.wp.kind !== "none"
   return (
-    <div className={"wg font-" + w.font + (def.bare ? " wg-bare" : " wg-bg-" + bg) + (hasGlass ? " wg-has-glass" : "") + (editing ? " wg-edit" : "") + (w.locked ? " wg-locked" : "")} style={style}
+    <div className={"wg font-" + w.font + (bare ? " wg-bare" : " wg-bg-" + bg) + (hasGlass ? " wg-has-glass" : "") + (editing ? " wg-edit" : "") + (w.locked ? " wg-locked" : "")} style={style}
       data-interactive={editing || def.interactive ? "true" : "false"} onPointerDown={drag("move")} aria-label={def.name}>
       {hasGlass && <Glass ctx={glass} r={r} blur={glassBlur} />}
       <Isolate name={def.name}>

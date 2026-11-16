@@ -131,7 +131,7 @@ function Content({ w }: { w: WidgetInstance }) {
   const def = CATALOG[w.type]
   return (
     <>
-      {def.fields.map((f) => (
+      {def.fields.filter((f) => !f.when || ((w.config[f.when.key] as string) ?? def.fields.find((x) => x.key === f.when!.key)?.default) === f.when.value).map((f) => (
         <Setting key={f.key} title={f.label}>
           {f.kind === "toggle"
             ? <Switch label={f.label} checked={(w.config[f.key] as boolean) ?? f.default} onChange={(v) => updateWidget(w.id, { config: { [f.key]: v } })} />

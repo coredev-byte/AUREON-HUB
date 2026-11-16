@@ -180,6 +180,9 @@ function parseEspn(j, league) {
       win: !!t.winner,
     })
     const state = st.state === "in" ? "live" : st.state === "post" ? "done" : "upcoming"
+    // minuto e tempo (futebol: "72'", "45'+2'"; basquete: relógio do quarto) para a barra de progresso
+    const minute = state === "live" ? parseInt(String(status.displayClock || ""), 10) || undefined : undefined
+    const period = state === "live" ? Number(status.period) || undefined : undefined
     let detail = ""
     if (state === "live") detail = /half/i.test(st.name || "") || /HT/.test(st.shortDetail || "") ? "Intervalo" : status.displayClock || st.shortDetail
     else if (state === "done") detail = /pen/i.test(st.shortDetail || "") ? "Pênaltis" : "Encerrado"
@@ -194,6 +197,9 @@ function parseEspn(j, league) {
       event: lname,
       eventLogo: llogo,
       league: (e.league && e.league.slug) || league,
+      minute,
+      period,
+      clock: state === "live" ? String(status.displayClock || "") : undefined,
       link: (e.links && e.links[0] && e.links[0].href) || `https://www.espn.com.br/futebol/partida/_/jogoId/${e.id}`,
     }
   })
@@ -214,6 +220,76 @@ async function football(leagues = ["bra.1"], days = 6) {
   const all = await Promise.all(leagues.flatMap((l) => dates.map((d) => footballLeague(l, d).catch(() => []))))
   const seen = new Set()
   return all.flat().filter((m) => (seen.has(m.id) ? false : seen.add(m.id))).sort((a, b) => a.start - b.start)
+}
+
+/* ------------------------------ Classificação (ESPN) ------------------------------ */
+async function standings(league = "bra.1") {
+  if (!/^[a-z0-9._]{2,40}$/i.test(league)) throw new Error("campeonato inválido")
+  return cached(`st-${league}`, 10 * 60_000, async () => {
+    const j = JSON.parse(await getText(`https://site.api.espn.com/apis/v2/sports/soccer/${encodeURIComponent(league)}/standings`))
+    const group = (j.children || [])[0]
+    const entries = (group && group.standings && group.standings.entries) || []
+    const stat = (e, n) => { const x = (e.stats || []).find((s) => s.name === n); return x ? x.displayValue ?? String(x.value ?? "") : "" }
+    return {
+      league, name: j.name || group?.name || "", season: (j.season && j.season.displayName) || "",
+      rows: entries.map((e) => ({
+        rank: Number(stat(e, "rank")) || 0,
+        team: { id: String(e.team.id), name: e.team.shortDisplayName || e.team.displayName, short: e.team.abbreviation || "", logo: (e.team.logos && e.team.logos[0] && e.team.logos[0].href) || "" },
+        pts: Number(stat(e, "points")) || 0, gp: Number(stat(e, "gamesPlayed")) || 0, w: Number(stat(e, "wins")) || 0,
+        d: Number(stat(e, "ties")) || 0, l: Number(stat(e, "losses")) || 0, gd: stat(e, "pointDifferential"),
+        note: e.note ? { color: e.note.color ? "#" + String(e.note.color).replace("#", "") : "", text: e.note.description || "" } : null,
+      })).sort((a, b) => a.rank - b.rank),
+    }
+  })
+}
+
+/* ------------------------------ Basquete e F1 (ESPN) ------------------------------ */
+const ESPN_SITE = "https://site.api.espn.com/apis/site/v2/sports"
+async function basketball(league = "nba") {
+  if (!/^(nba|wnba|mens-college-basketball)$/.test(league)) throw new Error("liga inválida")
+  const dates = [-1, 0, 1, 2].map((i) => { const d = new Date(); d.setDate(d.getDate() + i); return ymd(d) })
+  const all = await Promise.all(dates.map((d) => cached(`bk-${league}-${d}`, d === ymd(new Date()) ? 30_000 : 10 * 60_000, async () => {
+    const j = JSON.parse(await getText(`${ESPN_SITE}/basketball/${league}/scoreboard?dates=${d}`))
+    return parseEspn(j, league).map((m) => ({ ...m, id: "bk-" + m.id.slice(3) }))
+  }).catch(() => [])))
+  const seen = new Set()
+  return all.flat().filter((m) => (seen.has(m.id) ? false : seen.add(m.id))).sort((a, b) => a.start - b.start)
+}
+const F1_SESSION = { FP1: "Treino livre 1", FP2: "Treino livre 2", FP3: "Treino livre 3", Qual: "Classificação", Race: "Corrida", SS: "Sprint (classificação)", SR: "Sprint", Sprint: "Sprint" }
+async function f1() {
+  return cached("f1", 5 * 60_000, async () => {
+    const j = JSON.parse(await getText(`${ESPN_SITE}/racing/f1/scoreboard`))
+    return (j.events || []).map((e) => ({
+      id: "f1-" + e.id, name: e.name || e.shortName || "", start: Date.parse(e.date),
+      circuit: (e.circuit && (e.circuit.fullName || e.circuit.address?.city)) || "",
+      sessions: (e.competitions || []).map((c) => ({
+        type: (c.type && c.type.abbreviation) || "", label: F1_SESSION[(c.type && c.type.abbreviation) || ""] || (c.type && c.type.text) || "Sessão",
+        start: Date.parse(c.date), state: c.status && c.status.type ? (c.status.type.state === "in" ? "live" : c.status.type.state === "post" ? "done" : "upcoming") : "upcoming",
+      })),
+    }))
+  })
+}
+
+/* ------------------------------ Detalhe de partida de Valorant (vlr.gg) ------------------------------ */
+/** escudos dos times e mapas (com o mapa em andamento), só para a partida em destaque */
+function parseVlrMatch(html) {
+  const fix = (u) => (!u || /vlr\.png$/.test(u) ? "" : u.startsWith("//") ? "https:" + u : u.startsWith("/") ? VLR + u : u)
+  const logos = [...html.matchAll(/<img src="([^"]+)" alt="[^"]*team logo">/g)].map((m) => fix(m[1]))
+  const maps = []
+  const starts = [...html.matchAll(/<div class="vm-stats-game[^"]*" data-game-id="(\d+)">/g)]
+  for (const g of starts) {
+    const body = html.slice(g.index, g.index + 3500)
+    const name = decode((body.match(/<div class="map-name">[\s\S]*?<span[^>]*>([\s\S]*?)<\/span>/) || [])[1] || "").replace(/PICK|DECIDER/gi, "").trim()
+    const scores = [...body.matchAll(/<div class="score([^"]*)"[^>]*>\s*(\d+)/g)].slice(0, 2).map((m) => ({ v: Number(m[2]), win: /mod-win/.test(m[1]) }))
+    maps.push({ id: g[1], name: name && !/^tbd$/i.test(name) ? name : "", a: scores[0]?.v ?? 0, b: scores[1]?.v ?? 0, done: scores.some((x) => x.win) })
+  }
+  const cur = maps.findIndex((m) => !m.done)
+  return { logos: { a: logos[0] || "", b: logos[1] || "" }, maps, current: cur >= 0 ? cur : maps.length - 1 }
+}
+async function vlrMatch(link) {
+  const m = /^https:\/\/www\.vlr\.gg\/(\d+)\/[\w-]+$/.exec(String(link || ""))
+  if (!m) throw new Error("partida inválida")
+  return cached("vlrm-" + m[1], 45_000, async () => parseVlrMatch(await getText(link)))
 }
 
 /** próximos jogos de um time (qualquer data, não só a semana do placar) */
@@ -283,6 +359,10 @@ function register(ipcMain) {
     throw new Error("esporte desconhecido")
   })
   ipcMain.handle("sports:teams", (_e, sport, opts = {}) => teams(sport, opts))
+  ipcMain.handle("sports:standings", (_e, league) => standings(String(league || "bra.1")))
+  ipcMain.handle("sports:basket", (_e, league) => basketball(String(league || "nba")))
+  ipcMain.handle("sports:f1", () => f1())
+  ipcMain.handle("sports:match", (_e, link) => vlrMatch(String(link || "")))
 }
 
-module.exports = { register, teams, parseLiquipedia, parseLpBlocks, parseVlr, parseEspn, cached, getText, lpGet, lpTeam, decode, abs, ESPN, VLR, LP, UA_WEB, UA_APP }
+module.exports = { register, teams, parseLiquipedia, parseLpBlocks, parseVlr, parseVlrMatch, parseEspn, standings, basketball, f1, cached, getText, lpGet, lpTeam, decode, abs, ESPN, VLR, LP, UA_WEB, UA_APP }

@@ -9,10 +9,12 @@ export interface WidgetProps {
   editing: boolean
   update: (config: Record<string, unknown>) => void
 }
-export type Field =
+/** `when`: só aparece quando outra opção tem um valor (ex.: "Cena" só no estilo Aureon) */
+type When = { when?: { key: string; value: string } }
+export type Field = When & (
   | { key: string; label: string; kind: "select"; options: { value: string; label: string }[]; default: string }
   | { key: string; label: string; kind: "toggle"; default: boolean }
-  | { key: string; label: string; kind: "text"; default: string; placeholder?: string }
+  | { key: string; label: string; kind: "text"; default: string; placeholder?: string })
 
 export interface WidgetDef {
   type: WidgetType
@@ -26,6 +28,10 @@ export interface WidgetDef {
   Settings?: LazyExoticComponent<ComponentType<{ w: WidgetInstance; set: (p: Record<string, unknown>) => void }>>
   /** sem fundo/borda do Aureon: o widget desenha o próprio fundo */
   bare?: boolean
+  /** desenha o próprio fundo, mas aceita o vidro real (papel de parede desfocado) por trás */
+  glassable?: boolean
+  /** desenha o próprio fundo só em alguns estilos (ex.: estilo Aureon dos esportes) */
+  bareWhen?: (w: WidgetInstance) => boolean
   fields: Field[]
   component: LazyExoticComponent<ComponentType<WidgetProps>>
 }
@@ -41,8 +47,16 @@ export const CATALOG: Record<WidgetType, WidgetDef> = {
     component: lazy(() => import("./types/Clock")),
   },
   weather: {
-    type: "weather", name: "Clima", desc: "Tempo agora, próximas horas e dias (Open-Meteo), com o visual do Widgy.", size: { w: 320, h: 220 }, min: { w: 180, h: 120 }, interactive: true, bare: true,
-    fields: [{ key: "city", label: "Cidade", kind: "text", default: "", placeholder: "Vazio = a de Configurações (ou São Paulo)" }],
+    type: "weather", name: "Clima", desc: "Tempo agora com cena animada (estilo Aureon) ou o cartão clássico do Widgy. Dados do Open-Meteo.", size: { w: 360, h: 240 }, min: { w: 200, h: 130 }, interactive: true, bare: true, glassable: true,
+    fields: [
+      { key: "look", label: "Estilo", kind: "select", default: "aureon", options: [{ value: "aureon", label: "Aureon (cena animada)" }, { value: "widgy", label: "Clássico (Widgy)" }] },
+      { key: "scene", label: "Cena", kind: "select", default: "auto", when: { key: "look", value: "aureon" }, options: [
+        { value: "auto", label: "Automática (pelo tempo de agora)" }, { value: "sun", label: "Ensolarado" }, { value: "partly", label: "Parcialmente nublado" },
+        { value: "cloudy", label: "Nublado" }, { value: "rain", label: "Chuva" }, { value: "storm", label: "Tempestade" }, { value: "fog", label: "Neblina" },
+        { value: "wind", label: "Vento" }, { value: "snow", label: "Neve" }, { value: "night", label: "Noite" },
+      ] },
+      { key: "city", label: "Cidade", kind: "text", default: "", placeholder: "Vazio = a de Configurações (ou São Paulo)" },
+    ],
     component: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.Weather }))),
   },
   media: {
@@ -74,18 +88,29 @@ export const CATALOG: Record<WidgetType, WidgetDef> = {
     component: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.ValAgent }))),
   },
   cs2: {
-    type: "cs2", name: "CS2", desc: "Partidas ao vivo e próximas (Liquipedia), com seus times.", size: { w: 340, h: 300 }, min: { w: 220, h: 160 }, interactive: true,
-    fields: [], Settings: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.SportsOptions }))),
+    type: "cs2", name: "CS2", desc: "Partidas ao vivo e próximas (Liquipedia), com seus times.", size: { w: 420, h: 240 }, min: { w: 240, h: 140 }, interactive: true, bareWhen: (w) => (w.config.look ?? "aureon") === "aureon", glassable: true,
+    fields: [
+      { key: "look", label: "Estilo", kind: "select", default: "aureon", options: [{ value: "aureon", label: "Aureon" }, { value: "widgy", label: "Clássico (Widgy)" }] },
+      { key: "layout", label: "Mostrar", kind: "select", default: "auto", when: { key: "look", value: "aureon" }, options: [{ value: "auto", label: "Automático (pelo tamanho)" }, { value: "live", label: "Placar em destaque" }, { value: "list", label: "Próximos jogos" }, { value: "mini", label: "Pequeno" }] },
+    ], Settings: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.SportsOptions }))),
     component: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.Sports }))),
   },
   valorant: {
-    type: "valorant", name: "Valorant (partidas)", desc: "Partidas do cenário competitivo (VLR.gg).", size: { w: 340, h: 300 }, min: { w: 220, h: 160 }, interactive: true,
-    fields: [], Settings: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.SportsOptions }))),
+    type: "valorant", name: "Valorant (partidas)", desc: "Placar com o mapa atual, escudos e arte de agente. Dados do vlr.gg.", size: { w: 420, h: 240 }, min: { w: 240, h: 140 }, interactive: true, bareWhen: (w) => (w.config.look ?? "aureon") === "aureon", glassable: true,
+    fields: [
+      { key: "look", label: "Estilo", kind: "select", default: "aureon", options: [{ value: "aureon", label: "Aureon" }, { value: "widgy", label: "Clássico (Widgy)" }] },
+      { key: "layout", label: "Mostrar", kind: "select", default: "auto", when: { key: "look", value: "aureon" }, options: [{ value: "auto", label: "Automático (pelo tamanho)" }, { value: "live", label: "Placar em destaque" }, { value: "list", label: "Próximos jogos" }, { value: "mini", label: "Pequeno" }] },
+      { key: "agentArt", label: "Arte de agente", kind: "select", default: "Jett", when: { key: "look", value: "aureon" }, options: [{ value: "none", label: "Nenhuma" }, { value: "Jett", label: "Jett" }, { value: "Reyna", label: "Reyna" }, { value: "Raze", label: "Raze" }, { value: "Phoenix", label: "Phoenix" }, { value: "Sage", label: "Sage" }, { value: "Omen", label: "Omen" }, { value: "Viper", label: "Viper" }, { value: "Killjoy", label: "Killjoy" }, { value: "Sova", label: "Sova" }, { value: "Neon", label: "Neon" }, { value: "Clove", label: "Clove" }, { value: "Iso", label: "Iso" }, { value: "Gekko", label: "Gekko" }, { value: "Fade", label: "Fade" }, { value: "Chamber", label: "Chamber" }, { value: "Yoru", label: "Yoru" }] },
+    ], Settings: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.SportsOptions }))),
     component: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.Sports }))),
   },
   football: {
-    type: "football", name: "Futebol", desc: "Jogos ao vivo e próximos (ESPN), por campeonato e time.", size: { w: 340, h: 300 }, min: { w: 220, h: 160 }, interactive: true,
-    fields: [], Settings: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.SportsOptions }))),
+    type: "football", name: "Futebol", desc: "Placar ao vivo com tempo de jogo, próximos jogos (com basquete e F1) e classificação. Dados da ESPN.", size: { w: 420, h: 240 }, min: { w: 240, h: 140 }, interactive: true, bareWhen: (w) => (w.config.look ?? "aureon") === "aureon", glassable: true,
+    fields: [
+      { key: "look", label: "Estilo", kind: "select", default: "aureon", options: [{ value: "aureon", label: "Aureon" }, { value: "widgy", label: "Clássico (Widgy)" }] },
+      { key: "layout", label: "Mostrar", kind: "select", default: "auto", when: { key: "look", value: "aureon" }, options: [{ value: "auto", label: "Automático (pelo tamanho)" }, { value: "live", label: "Placar em destaque" }, { value: "list", label: "Próximos jogos" }, { value: "mini", label: "Pequeno" }, { value: "table", label: "Classificação do campeonato" }] },
+      { key: "tableLeague", label: "Campeonato da tabela", kind: "select", default: "bra.1", when: { key: "layout", value: "table" }, options: [{ value: "bra.1", label: "Brasileirão" }, { value: "bra.2", label: "Série B" }, { value: "eng.1", label: "Premier League" }, { value: "esp.1", label: "La Liga" }, { value: "ita.1", label: "Série A (ITA)" }, { value: "ger.1", label: "Bundesliga" }, { value: "fra.1", label: "Ligue 1" }, { value: "por.1", label: "Liga Portugal" }, { value: "arg.1", label: "Argentino" }, { value: "usa.1", label: "MLS" }] },
+    ], Settings: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.SportsOptions }))),
     component: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.Sports }))),
   },
   team: {
