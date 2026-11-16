@@ -278,43 +278,42 @@ function ShareTab({ share }: { share: SharePublic }) {
     return (
       <div className="n-card col" style={{ height: "100%", justifyContent: "center", alignItems: "center", gap: 10, textAlign: "center" }}>
         <MonitorUp size={26} color="var(--sh-muted)" />
-        <div style={{ fontWeight: 600 }}>Nenhuma transmissão</div>
-        <div style={{ color: "var(--sh-muted)", fontSize: 12, maxWidth: 380 }}>Transmita sua tela para amigos em outras redes, com convite privado. Nada começa sem você escolher a tela.</div>
-        <div className="row"><button type="button" className="n-btn n-btn-primary" onClick={() => void invoke("app:open", "share")}>Transmitir tela</button><button type="button" className="n-btn" onClick={() => void invoke("app:open", "share", { tab: "watch" })}>Assistir</button></div>
+        <div style={{ fontWeight: 600 }}>Fora de uma sala</div>
+        <div style={{ color: "var(--sh-muted)", fontSize: 12, maxWidth: 400 }}>Crie uma sala e mande o código curto: todo mundo pode transmitir a própria tela e cada um escolhe o que assistir. Nada começa sem você escolher a tela.</div>
+        <div className="row"><button type="button" className="n-btn n-btn-primary" onClick={() => void invoke("app:open", "share")}>Criar ou entrar numa sala</button></div>
       </div>
     )
   }
-  if (share.role === "viewer") {
-    return (
-      <div className="n-card col" style={{ height: "100%", justifyContent: "center", gap: 8 }}>
-        <div className="row"><Eye size={16} /><b>Assistindo {share.hostName || "uma transmissão"}</b></div>
-        <div style={{ color: "var(--sh-muted)", fontSize: 12 }}>Conexão: {CONN[share.connection ?? "good"]}</div>
-        <div className="row"><button type="button" className="n-btn" onClick={() => void invoke("app:open", "share", { tab: "watch" })}>Abrir</button><button type="button" className="n-btn n-btn-danger" onClick={() => void invoke("share:command", "leave")}>Sair</button></div>
-      </div>
-    )
-  }
+  const sharing = share.role === "host"
   const elapsed = share.startedAt ? (now.getTime() - share.startedAt) / 1000 : 0
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 220px", gap: 10, height: "100%" }}>
       <div className="n-card col" style={{ gap: 12 }}>
-        <div className="row"><span className="n-live"><span className="dot" />AO VIVO</span><span className="truncate grow" style={{ color: "var(--sh-muted)", fontSize: 12 }}>{share.source}</span></div>
+        <div className="row">
+          {sharing ? <span className="n-live"><span className="dot" />AO VIVO</span> : <span style={{ fontWeight: 600 }}>Na sala</span>}
+          <span className="truncate grow" style={{ color: "var(--sh-muted)", fontSize: 12 }}>{sharing ? share.source : share.hostName ? "assistindo " + share.hostName : "ninguém aberto"}</span>
+        </div>
         <div className="row" style={{ gap: 26 }}>
-          <div className="n-stat"><b>{fmtTime(elapsed)}</b><span>tempo</span></div>
-          <div className="n-stat"><b>{share.viewers ?? 0}</b><span>assistindo</span></div>
+          <div className="n-stat"><b>{share.members ?? 1}</b><span>na sala</span></div>
+          <div className="n-stat"><b>{share.live ?? 0}</b><span>transmitindo</span></div>
+          {sharing && <div className="n-stat"><b>{fmtTime(elapsed)}</b><span>no ar</span></div>}
+          {sharing && <div className="n-stat"><b>{share.viewers ?? 0}</b><span>te assistindo</span></div>}
           <div className="n-stat"><b style={{ fontSize: 14, paddingTop: 4, color: CONN_COLOR[share.connection ?? "good"] }}>{CONN[share.connection ?? "good"]}</b><span>conexão</span></div>
-          <div className="n-stat"><b style={{ fontSize: 14, paddingTop: 4 }}>{share.quality ?? "—"}</b><span>qualidade</span></div>
         </div>
         <div className="row" style={{ marginTop: "auto" }}>
-          <button type="button" className="n-btn" onClick={() => void invoke("share:command", "pick-source")}><Repeat size={12} style={{ marginRight: 5, verticalAlign: -1 }} />Trocar fonte</button>
-          <button type="button" className="n-btn" onClick={() => void invoke("app:open", "share")}>Abrir painel <ChevronRight size={12} style={{ verticalAlign: -2 }} /></button>
+          {sharing
+            ? <button type="button" className="n-btn" onClick={() => void invoke("share:command", "pick-source")}><Repeat size={12} style={{ marginRight: 5, verticalAlign: -1 }} />Trocar tela</button>
+            : <button type="button" className="n-btn n-btn-primary" onClick={() => void invoke("share:command", "pick-source")}>Transmitir minha tela</button>}
+          <button type="button" className="n-btn" onClick={() => void invoke("app:open", "share")}>Abrir sala <ChevronRight size={12} style={{ verticalAlign: -2 }} /></button>
           <span className="grow" />
-          <button type="button" className="n-btn n-btn-danger" onClick={() => void invoke("share:command", "stop")}>Encerrar</button>
+          {sharing && <button type="button" className="n-btn n-btn-danger" onClick={() => void invoke("share:command", "stop")}>Parar</button>}
+          <button type="button" className="n-btn" onClick={() => void invoke("share:command", "leave")}>Sair</button>
         </div>
       </div>
       <div className="n-card col" style={{ gap: 6 }}>
-        <div style={{ fontSize: 11, color: "var(--sh-muted)" }}>Convite</div>
-        <div className="num" style={{ fontSize: 15, letterSpacing: "0.08em" }}>{share.code ?? "—"}</div>
-        <div style={{ fontSize: 11, color: "var(--sh-muted)", marginTop: "auto" }}>{share.requests ? `${share.requests} pedido(s) para entrar: responda no aviso acima ou no painel.` : "Quem tiver o convite pede para entrar e você aprova."}</div>
+        <div style={{ fontSize: 11, color: "var(--sh-muted)" }}>Código da sala</div>
+        <div className="num" style={{ fontSize: 22, letterSpacing: "0.12em" }}>{share.code || "—"}</div>
+        <div style={{ fontSize: 11, color: "var(--sh-muted)", marginTop: "auto" }}>{share.requests ? `${share.requests} pedido(s) para entrar: responda no aviso ou na sala.` : share.owner ? "Quem tiver o código pede para entrar e você aprova." : "Peça para quem cuida da sala aprovar seus amigos."}</div>
       </div>
     </div>
   )

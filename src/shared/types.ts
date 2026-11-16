@@ -82,7 +82,12 @@ export interface SharePublic {
   code?: string
   quality?: string
   audio?: boolean
+  /** nomes de quem estou assistindo */
   hostName?: string
+  /** pessoas na sala, quantas transmitem e se sou o dono */
+  members?: number
+  live?: number
+  owner?: boolean
 }
 
 /** estado do atualizador (electron/core/updater.cjs) */

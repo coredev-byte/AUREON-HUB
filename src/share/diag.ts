@@ -58,6 +58,11 @@ export async function diagnose(url: string): Promise<DiagResult> {
     ice = r.ice
     sig.send({ t: "end" })
     add({ id: "room", label: "Criar sala", ok: true, detail: "sala de teste criada e encerrada" })
+    if (r.protocol !== 2) {
+      add({ id: "version", label: "Versão do servidor", ok: false, detail: "antiga (salas de uma pessoa só)" })
+      sig.close()
+      return { steps, verdict: { level: "bad", title: "O servidor de transmissão está desatualizado.", fixes: ["Publique a pasta server/ desta versão (2.0): no Render, um novo deploy a partir do repositório basta. Todos na sala precisam do Aureon Hub 0.5 ou mais novo."] } }
+    }
   } catch (e: any) {
     add({ id: "ws", label: "Conexão em tempo real (WebSocket)", ok: false, detail: e?.message || String(e) })
     sig.close()

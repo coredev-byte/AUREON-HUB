@@ -86,7 +86,7 @@ function browserBridge(): Native {
     "notify:action": (id: string, action: string) => {
       const n = notices.find((x) => x.id === id); if (!n) return false
       notices = notices.filter((x) => x.id !== id); emit("notify:list", notices)
-      if (n.target === "main") emit("share:command", { cmd: action === "accept" ? "admit" : "deny", args: [n.ref] })
+      if (n.target === "main") emit("share:command", { cmd: action === "accept" ? "admit" : action === "watch" ? "watch" : "deny", args: [n.ref] })
       return true
     },
     "notch:interactive": () => {}, "notch:menu": () => {}, "widgets:interactive": () => {},

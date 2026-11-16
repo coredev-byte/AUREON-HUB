@@ -1,34 +1,34 @@
-// Orquestra a transmissão dentro da janela principal (que só é escondida, nunca destruída, ao fechar):
-// uma sessão de transmissão e/ou uma de espectador, o estado para a interface, o resumo público para o
-// notch/bandeja e os comandos vindos de fora (encerrar, aceitar, recusar).
+// Orquestra a sala de transmissão dentro da janela principal (que só é escondida, nunca destruída, ao fechar):
+// o estado para a interface, o resumo público para o notch/bandeja e os comandos vindos de fora
+// (parar de transmitir, sair, aceitar, recusar, assistir).
 import { create } from "zustand"
 import { invoke, on } from "@/shared/bridge"
 import { setSharePublicLocal } from "@/shared/hooks"
 import { getSection } from "@/shared/state"
 import type { SharePublic } from "@/shared/types"
-import { HostSession, idleHost, type HostState, type StartOpts } from "./host"
 import { PROFILES, type QualityId } from "./quality"
-import { ViewerSession, idleViewer, type ViewerState } from "./viewer"
+import { RoomSession, idleRoom, type RoomEvent, type RoomState, type ShareOpts } from "./room"
 
-interface ShareStore { host: HostState; viewer: ViewerState; grade: "good" | "fair" | "poor" }
-export const useShare = create<ShareStore>(() => ({ host: idleHost(), viewer: idleViewer(), grade: "good" }))
+interface ShareStore { room: RoomState; grade: "good" | "fair" | "poor" }
+export const useShare = create<ShareStore>(() => ({ room: idleRoom(), grade: "good" }))
 
-let host: HostSession | null = null
-let viewer: ViewerSession | null = null
+let session: RoomSession | null = null
 const notify = (n: Record<string, unknown>) => void invoke("notify:push", n).catch(() => {})
 
 /** resumo para o notch e a bandeja (sem fluxo de vídeo, só números e textos) */
 function publish() {
-  const { host: h, viewer: v, grade } = useShare.getState()
+  const { room: r, grade } = useShare.getState()
   let pub: SharePublic = { active: false }
-  if (h.phase === "live" || h.phase === "source-lost" || h.phase === "connecting") {
+  if (r.phase === "in-room" || r.phase === "waiting" || r.phase === "connecting") {
+    const sharing = r.share.phase !== "off"
+    const watching = r.watching.map((w) => r.members.find((m) => m.peer === w.peer)?.name ?? "").filter(Boolean)
     pub = {
-      active: true, role: "host", phase: h.phase, source: h.source?.name ?? "", startedAt: h.startedAt || Date.now(), viewers: h.viewers.length,
-      requests: h.requests.length, code: h.code, quality: PROFILES[h.quality].label, audio: h.audio,
-      connection: h.signal === "reconnecting" ? "reconnecting" : h.signal === "offline" ? "offline" : grade,
+      active: true, role: sharing ? "host" : "viewer", phase: sharing ? r.share.phase : r.phase,
+      source: r.share.source?.name ?? "", startedAt: r.share.startedAt || Date.now(), viewers: r.share.viewers.length,
+      requests: r.requests.length, code: r.code, quality: PROFILES[r.share.quality].label, audio: r.share.audio,
+      hostName: watching.join(", "), members: r.members.length, live: r.members.filter((m) => m.live).length, owner: r.me === r.owner,
+      connection: r.signal === "reconnecting" ? "reconnecting" : r.signal === "offline" ? "offline" : grade,
     }
-  } else if (v.phase !== "idle" && v.phase !== "ended" && v.phase !== "error") {
-    pub = { active: true, role: "viewer", phase: v.phase, hostName: v.hostName, connection: v.signal !== "online" ? "reconnecting" : v.grade }
   }
   const key = JSON.stringify(pub)
   if (key === lastPub) return
@@ -42,55 +42,69 @@ export function signalUrl(): string {
   return getSection("settings")?.signalUrl?.trim() || import.meta.env.VITE_AUREON_SIGNAL_URL || ""
 }
 
-export async function startHosting(o: Omit<StartOpts, "signalUrl" | "name" | "preferHardware" | "approval"> & { approval?: boolean }) {
-  if (host && host.state.phase !== "idle" && host.state.phase !== "error") throw new Error("Já existe uma transmissão ativa.")
+function onEvent(e: RoomEvent) {
+  if (e.type === "request") notify({ kind: "request", title: `${e.name} quer entrar na sala`, body: "Aceite só quem você conhece.", actions: [{ id: "accept", label: "Aceitar" }, { id: "deny", label: "Recusar" }], target: "main", ref: e.peer, sticky: true })
+  else if (e.type === "member") notify({ kind: "share", title: `${e.name} entrou na sala` })
+  else if (e.type === "member-left") notify({ kind: "share", title: `${e.name} saiu da sala` })
+  else if (e.type === "live") notify({ kind: "share", title: `${e.name} começou a transmitir`, body: e.label, actions: [{ id: "watch", label: "Assistir" }], target: "main", ref: e.peer })
+  else if (e.type === "viewer") notify({ kind: "share", title: `${e.name} está assistindo sua tela` })
+  else if (e.type === "owner" && e.me) notify({ kind: "share", title: "Agora você cuida da sala", body: "Quem criou saiu. Você aprova as entradas." })
+  else if (e.type === "source-lost") notify({ kind: "alert", title: "A tela que você transmitia fechou", body: "Escolha outra tela ou janela, ou pare de transmitir." })
+  else if (e.type === "alert" && e.code === "brute") notify({ kind: "alert", title: "Muitas tentativas com código errado", body: "A sala foi trancada. Gere um novo código se quiser liberar." })
+  else if (e.type === "signal-lost") notify({ kind: "alert", title: "Sem servidor de transmissão", body: "As telas abertas continuam; ninguém novo consegue entrar." })
+  else if (e.type === "ended") notify({ kind: "share", title: "Você saiu da sala" })
+  else if (e.type === "grade") { if (useShare.getState().grade !== e.grade) { useShare.setState({ grade: e.grade }); publish() } }
+}
+
+function newSession() {
+  session?.leave()
+  session = new RoomSession((s) => { useShare.setState({ room: s }); publish() }, onEvent)
+  return session
+}
+
+const needUrl = () => {
   const url = signalUrl()
-  if (!url) throw new Error("Configure o servidor de transmissão em Configurações › Transmissão.")
+  if (!url) throw new Error("Configure o servidor de transmissão em Transmissão › Servidor e conexão.")
+  return url
+}
+const myName = () => getSection("share")?.name?.trim() || "Convidado"
+
+export async function createRoom(name = myName()) {
+  const url = needUrl()
   const prefs = getSection("share")
-  host = new HostSession(
-    (s) => { useShare.setState({ host: s }); publish() },
-    (e) => {
-      if (e.type === "request") notify({ kind: "request", title: `${e.name} quer assistir`, body: "Aceite só quem você conhece.", actions: [{ id: "accept", label: "Aceitar" }, { id: "deny", label: "Recusar" }], target: "main", ref: e.peer, sticky: true })
-      else if (e.type === "joined") notify({ kind: "share", title: `${e.name} está assistindo` })
-      else if (e.type === "left") notify({ kind: "share", title: `${e.name} saiu da transmissão` })
-      else if (e.type === "source-lost") notify({ kind: "alert", title: "A fonte da transmissão fechou", body: "Escolha outra tela ou janela, ou encerre." })
-      else if (e.type === "alert" && e.code === "brute") notify({ kind: "alert", title: "Muitas tentativas com código errado", body: "A sala foi trancada. Gere um novo convite se quiser liberar." })
-      else if (e.type === "signal-lost") notify({ kind: "alert", title: "Sem servidor de transmissão", body: "Quem já assiste continua; novos espectadores não conseguem entrar." })
-      else if (e.type === "ended") notify({ kind: "share", title: "Transmissão encerrada" })
-      else if (e.type === "grade") { if (useShare.getState().grade !== e.grade) { useShare.setState({ grade: e.grade }); publish() } }
-    },
-  )
-  await host.start({ ...o, signalUrl: url, name: prefs?.name || "", preferHardware: prefs?.preferHardware ?? true, approval: o.approval ?? prefs?.approval ?? true })
-  notify({ kind: "share", title: "Transmissão no ar", body: `${o.sourceName} · convite ${host.state.code}` })
+  await newSession().create(url, name, prefs?.approval ?? true)
+  notify({ kind: "share", title: "Sala criada", body: `Convite ${session?.state.code}` })
 }
+export async function joinRoom(code: string, name = myName()) {
+  const url = needUrl()
+  await newSession().join(url, code, name)
+}
+export function leaveRoom() { session?.leave(); session = null; useShare.setState({ room: idleRoom() }); publish() }
+export function endRoom() { session?.endForAll(); session = null; useShare.setState({ room: idleRoom() }); publish() }
 
-export function stopHosting() {
-  if (!host) return
-  host.stop()
-  useShare.setState({ host: idleHost() })
-  publish()
+export async function startSharing(o: Omit<ShareOpts, "preferHardware">) {
+  if (!session) throw new Error("Entre numa sala primeiro.")
+  await session.startShare({ ...o, preferHardware: getSection("share")?.preferHardware ?? true })
 }
-export const hostSession = () => host
-export async function switchSource(id: string, name: string, kind: string) { await host?.switchSource(id, name, kind) }
-export async function setQuality(q: QualityId) { await host?.setQuality(q) }
-export function admit(peer: string, ok: boolean) { host?.admit(peer, ok); void invoke("notify:list").then((l: any[]) => { for (const n of l) if (n.ref === peer) void invoke("notify:dismiss", n.id) }) }
-
-export async function watch(code: string, name: string) {
-  const url = signalUrl()
-  if (!url) throw new Error("Configure o servidor de transmissão em Configurações › Transmissão.")
-  viewer?.leave()
-  viewer = new ViewerSession((s) => { useShare.setState({ viewer: s }); publish() })
-  await viewer.join(url, code, name)
+export function stopSharing() { session?.stopShare() }
+export const roomSession = () => session
+export async function switchSource(id: string, name: string, kind: string) { await session?.switchSource(id, name, kind) }
+export async function setQuality(q: QualityId) { await session?.setQuality(q) }
+export function watchPeer(peer: string) { session?.watch(peer) }
+export function unwatchPeer(peer: string) { session?.unwatch(peer) }
+export function admit(peer: string, ok: boolean) {
+  session?.admit(peer, ok)
+  void invoke("notify:list").then((l: any[]) => { for (const n of l) if (n.ref === peer) void invoke("notify:dismiss", n.id) })
 }
-export function leaveWatching() { viewer?.leave(); viewer = null; useShare.setState({ viewer: idleViewer() }); publish() }
 
 // comandos vindos do notch, da bandeja ou dos avisos
 on("share:command", ({ cmd, args }: { cmd: string; args: string[] }) => {
-  if (cmd === "stop") stopHosting()
+  if (cmd === "stop") stopSharing()
   else if (cmd === "admit") admit(args[0], true)
   else if (cmd === "deny") admit(args[0], false)
-  else if (cmd === "kick") host?.kick(args[0])
-  else if (cmd === "leave") leaveWatching()
+  else if (cmd === "kick") session?.kick(args[0])
+  else if (cmd === "watch") watchPeer(args[0])
+  else if (cmd === "leave") leaveRoom()
 })
 // a página foi recarregada/fechada: nada de transmissão fantasma
-window.addEventListener("beforeunload", () => { host?.stop(); viewer?.leave() })
+window.addEventListener("beforeunload", () => { session?.leave() })

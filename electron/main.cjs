@@ -41,7 +41,7 @@ const broadcast = (ch, payload, role) => windows.broadcast(ch, payload, role)
 function inviteFrom(argv) {
   const url = (argv || []).find((a) => typeof a === "string" && a.startsWith("aureon://"))
   if (!url) return null
-  const m = /^aureon:\/\/join\/([A-Z0-9-]{10,24})\/?$/i.exec(url)
+  const m = /^aureon:\/\/join\/([A-Z0-9-]{8,24})\/?$/i.exec(url)
   return m ? m[1].toUpperCase() : null
 }
 let pendingInvite = inviteFrom(process.argv)
@@ -164,7 +164,7 @@ function registerIpc() {
   h("share:get", any, () => shareState)
   // notch/bandeja pedem algo à transmissão (encerrar, aceitar alguém); trocar a fonte abre o seletor
   h("share:command", any, (_e, cmd, ...args) => {
-    if (!["stop", "admit", "deny", "kick", "leave", "pick-source"].includes(cmd)) return false
+    if (!["stop", "admit", "deny", "kick", "leave", "watch", "pick-source"].includes(cmd)) return false
     if (cmd === "pick-source") { showMain("share", { pick: true }); return true }
     return sendShareCommand(cmd, ...args.map((x) => String(x).slice(0, 80)))
   })
@@ -179,7 +179,8 @@ function registerIpc() {
     const n = notifications.find(String(id))
     if (!n || !n.actions.some((a) => a.id === action)) return false
     notifications.dismiss(n.id)
-    if (n.target === "main") sendShareCommand(action === "accept" ? "admit" : "deny", n.ref)
+    if (n.target === "main") sendShareCommand(action === "accept" ? "admit" : action === "watch" ? "watch" : "deny", n.ref)
+    if (action === "watch") showMain("share")
     return true
   })
 

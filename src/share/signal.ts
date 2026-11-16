@@ -5,15 +5,16 @@ type Msg = { t: string; [k: string]: any }
 type Handler = (m: Msg) => void
 
 export const ERRORS: Record<string, string> = {
-  "bad-code": "Convite inválido. Confira o código.",
-  expired: "Este convite venceu. Peça um novo para quem está transmitindo.",
+  "bad-code": "Código inválido. Confira e tente de novo.",
+  expired: "Este código venceu. Peça um novo para quem cuida da sala.",
   locked: "A sala está trancada para novas entradas.",
   full: "A sala está cheia.",
   rate: "Muitas tentativas erradas. Espere alguns minutos.",
-  denied: "Quem transmite recusou sua entrada.",
+  denied: "Quem cuida da sala recusou sua entrada.",
   busy: "Você já está em uma sala.",
   "no-room": "A sala não existe mais.",
   "bad-key": "Não foi possível retomar a sala.",
+  unknown: "O servidor de transmissão está desatualizado. Publique a versão nova (pasta server/).",
 }
 
 export class SignalClient {

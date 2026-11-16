@@ -67,11 +67,11 @@ export default function Dashboard() {
               <div className="small muted row" style={{ gap: 6 }}><Eye size={13} />{share.viewers ?? 0} assistindo · {share.source}</div>
             </>
           ) : share.active ? (
-            <><div className="k" style={{ fontSize: 18, marginTop: 6 }}>Assistindo</div><div className="small muted">{share.hostName || "uma transmissão"}</div></>
+            <><div className="k" style={{ fontSize: 18, marginTop: 6 }}>Na sala {share.code}</div><div className="small muted">{share.members ?? 1} pessoa(s) · {share.hostName ? "assistindo " + share.hostName : `${share.live ?? 0} transmitindo`}</div></>
           ) : (
-            <><div className="k" style={{ fontSize: 18, marginTop: 6 }}>Nenhuma ativa</div><div className="small muted">Sala privada com convite e aprovação.</div></>
+            <><div className="k" style={{ fontSize: 18, marginTop: 6 }}>Nenhuma ativa</div><div className="small muted">Sala privada com código curto: várias pessoas podem transmitir.</div></>
           )}
-          <button type="button" className="btn btn-sm" style={{ alignSelf: "flex-start", marginTop: "auto" }} onClick={() => go("share")}>{share.active ? "Abrir painel" : "Transmitir tela"}</button>
+          <button type="button" className="btn btn-sm" style={{ alignSelf: "flex-start", marginTop: "auto" }} onClick={() => go("share")}>{share.active ? "Abrir sala" : "Criar ou entrar"}</button>
         </div>
       </div>
 
@@ -102,8 +102,8 @@ export default function Dashboard() {
           {m && <div className="tiny dim" style={{ marginTop: 10 }}>{m.processes.length} processos · {m.windows.notch} notch · {m.windows.widgets} camada(s) de widgets</div>}
         </div>
       </div>
-      {share.active && share.role === "host" && !!share.requests && (
-        <div className="callout callout-warn" style={{ marginTop: 14 }}><Radio size={16} />{share.requests} pessoa(s) pedindo para assistir. <button type="button" className="btn btn-sm" style={{ marginLeft: "auto" }} onClick={() => go("share")}>Responder</button></div>
+      {share.active && !!share.requests && (
+        <div className="callout callout-warn" style={{ marginTop: 14 }}><Radio size={16} />{share.requests} pessoa(s) pedindo para entrar na sala. <button type="button" className="btn btn-sm" style={{ marginLeft: "auto" }} onClick={() => go("share")}>Responder</button></div>
       )}
     </div>
   )
