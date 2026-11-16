@@ -74,7 +74,7 @@ export default function Widgets() {
           <button type="button" className="btn btn-primary" style={{ marginTop: 6 }} onClick={() => setAdding(true)}><Plus size={14} />Adicionar widget</button>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "300px minmax(0,1fr)", gap: 14, alignItems: "start" }}>
+        <div className="split" style={{ display: "grid", gridTemplateColumns: "300px minmax(0,1fr)", gap: 14, alignItems: "start" }}>
           <div className="card" style={{ padding: 6, position: "sticky", top: 0 }}>
             {profile.widgets.map((w) => {
               const def = CATALOG[w.type], I = ICON[w.type]
@@ -153,7 +153,7 @@ function Content({ w }: { w: WidgetInstance }) {
 
 const BG_HELP: Record<WidgetBg, string> = {
   default: "Usa o visual padrão de Personalização › Widgets.",
-  glass: "Vidro fosco: o papel de parede aparece desfocado por trás.",
+  glass: "Vidro fosco: o papel de parede aparece desfocado por trás. Com papel de parede animado, fica translúcido.",
   solid: "Fundo opaco na cor do tema: mais legível sobre papéis de parede movimentados.",
   none: "Sem caixa nenhuma: só o conteúdo, com uma sombra leve no texto para continuar legível.",
 }

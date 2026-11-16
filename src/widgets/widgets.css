@@ -3,9 +3,13 @@
 .edit-bar { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 12px; background: var(--s1); border: 1px solid var(--line-2); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); font-size: 12px; color: var(--muted); }
 .wg {
   position: absolute; border-radius: var(--wg-radius, var(--radius)); background: color-mix(in srgb, var(--bg) var(--wg-alpha, 88%), transparent);
-  border: 1px solid var(--wg-border, var(--line)); box-shadow: var(--wg-shadow, 0 8px 24px rgba(0, 0, 0, 0.28)); overflow: hidden; contain: layout paint;
-  backdrop-filter: blur(var(--wg-blur, 14px)) saturate(1.1);
+  border: 1px solid var(--wg-border, var(--line)); box-shadow: var(--wg-shadow, 0 8px 24px rgba(0, 0, 0, 0.28)); overflow: hidden; contain: layout paint; isolation: isolate;
 }
+/* vidro real: cópia desfocada do papel de parede (Layer.tsx) + a cor do tema por cima */
+.wg-glass { position: absolute; inset: 0; z-index: -1; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.wg-glass > i { position: absolute; display: block; }
+.wg-glass::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--bg) var(--wg-alpha, 88%), transparent); }
+.wg-has-glass { background: transparent; }
 .wg.font-grotesk { font-family: var(--font-num); }
 .wg.font-mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
 .wg-edit { cursor: grab; outline: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 3px; }
@@ -34,13 +38,17 @@
 .wg-ctrl.play { background: var(--fg); color: var(--bg); width: 34px; height: 34px; }
 .wg-ctrl:disabled { opacity: 0.35; }
 /* widgets que desenham o próprio fundo (portados do Widgy: clima, time, agente do Valorant) */
-.wg-bare { background: transparent; border-color: transparent; backdrop-filter: none; box-shadow: none; }
+.wg-bare { background: transparent; border-color: transparent; box-shadow: none; }
 .wg-bare.wg-edit { background: transparent; }
 
 /* fundo escolhido por widget */
-.wg-bg-glass { background: color-mix(in srgb, var(--bg) 52%, transparent); backdrop-filter: blur(22px) saturate(1.25); border-color: rgba(255, 255, 255, 0.1); }
-.wg-bg-solid { background: var(--bg); backdrop-filter: none; }
-.wg-bg-none { background: transparent; backdrop-filter: none; border-color: transparent; box-shadow: none; }
+/* vidro: menos cor por cima da cópia desfocada e um brilho fino no topo; sem papel de parede legível
+   (papel animado), fica translúcido com o mesmo brilho */
+.wg-bg-glass { background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 42%), color-mix(in srgb, var(--bg) 58%, transparent); border-color: rgba(255, 255, 255, 0.12); }
+.wg-bg-glass.wg-has-glass { background: transparent; }
+.wg-bg-glass .wg-glass::after { background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 42%), color-mix(in srgb, var(--bg) 34%, transparent); }
+.wg-bg-solid { background: var(--bg); }
+.wg-bg-none { background: transparent; border-color: transparent; box-shadow: none; }
 /* sem fundo: uma sombra leve no texto mantém a leitura sobre qualquer papel de parede */
 .wg-bg-none .wg-body, .wg-bg-none .wg-note, .wg-bg-none canvas { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 12px rgba(0, 0, 0, 0.25); }
 .wg-bg-none .wg-bar { background: rgba(255, 255, 255, 0.18); }

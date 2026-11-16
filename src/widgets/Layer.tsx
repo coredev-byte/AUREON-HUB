@@ -3,6 +3,7 @@ import { Check, Copy, GripVertical, Lock, LockOpen, Trash2, TriangleAlert } from
 import { invoke, on } from "@/shared/bridge"
 import { patch, useSection } from "@/shared/state"
 import { useTheme } from "@/shared/theme"
+import { placement, useWallpaper, type Wallpaper } from "@/shared/wallpaper"
 import type { DisplayInfo, WidgetInstance } from "@/shared/types"
 import { CATALOG } from "./catalog"
 import { duplicateWidget, moveWidget, removeWidget, updateWidget } from "./profiles"
@@ -31,6 +32,7 @@ export function Layer() {
   const [displays, setDisplays] = useState<DisplayInfo[]>([])
   const editing = !!ws?.editMode
   const area = useArea()
+  const wallpaper = useWallpaper()
 
   useEffect(() => on("widgets:paused", (v: boolean) => setPaused(!!v)), [])
   useEffect(() => {
@@ -72,6 +74,12 @@ export function Layer() {
   // widget de um monitor que foi desconectado aparece no principal (não some)
   const mine = (profile?.widgets ?? []).filter((w) => w.enabled && (w.display === DISPLAY || (PRIMARY && displays.length > 0 && !known.has(w.display))))
   const reduce = settings.reduceMotion || matchMedia("(prefers-reduced-motion: reduce)").matches
+  // onde esta janela (área de trabalho, sem a barra de tarefas) fica dentro do monitor inteiro
+  const d = displays.find((x) => x.id === DISPLAY)
+  const screen: Screen = d
+    ? { ox: d.workArea.x - d.bounds.x, oy: d.workArea.y - d.bounds.y, width: d.bounds.width, height: d.bounds.height, scale: d.scale }
+    : { ox: 0, oy: 0, width: area.width, height: area.height, scale: devicePixelRatio || 1 }
+  const glass = { wp: wallpaper, screen, blur: settings.widgetBlur ?? 14, solid: (settings.widgetBg ?? 0.88) >= 0.99 }
 
   return (
     <div className={"layer" + (editing ? " layer-editing" : "")}>
@@ -82,7 +90,7 @@ export function Layer() {
           <button type="button" className="btn btn-primary btn-sm" onClick={() => void patch("widgets", { editMode: false })}><Check size={13} />Concluir</button>
         </div>
       )}
-      {mine.map((w) => <Frame key={w.id} w={w} editing={editing} paused={paused || reduce} area={area} />)}
+      {mine.map((w) => <Frame key={w.id} w={w} editing={editing} paused={paused || reduce} area={area} glass={glass} />)}
     </div>
   )
 }
@@ -97,7 +105,34 @@ function useArea() {
   return a
 }
 
-function Frame({ w, editing, paused, area }: { w: WidgetInstance; editing: boolean; paused: boolean; area: { width: number; height: number } }) {
+interface Screen { ox: number; oy: number; width: number; height: number; scale: number }
+interface GlassCtx { wp: Wallpaper | null; screen: Screen; blur: number; solid: boolean }
+
+/**
+ * "Vidro" de verdade: a janela transparente não enxerga o papel de parede, então o widget desenha uma cópia
+ * dele, desfocada e alinhada com a tela, por trás do conteúdo. A camada é estática (o navegador desfoca uma
+ * vez e reaproveita), então não pesa enquanto o widget está parado.
+ */
+function Glass({ ctx, r, blur }: { ctx: GlassCtx; r: { x: number; y: number }; blur: number }) {
+  const wp = ctx.wp
+  if (!wp || wp.kind === "none") return null
+  if (wp.kind === "color") return <div className="wg-glass" aria-hidden><i style={{ inset: 0, background: wp.color }} /></div>
+  const s = ctx.screen
+  const p = placement(wp.style, wp, s, s.scale)
+  const bleed = Math.ceil(blur * 2) + 4
+  const left = r.x + s.ox - bleed, top = r.y + s.oy - bleed
+  return (
+    <div className="wg-glass" aria-hidden>
+      <i style={{
+        inset: -bleed, backgroundColor: wp.color ?? "#000", backgroundImage: `url("${wp.url}")`,
+        backgroundSize: `${p.w}px ${p.h}px`, backgroundPosition: `${p.x - left}px ${p.y - top}px`, backgroundRepeat: p.repeat ? "repeat" : "no-repeat",
+        filter: blur > 0 ? `blur(${blur}px) saturate(1.25)` : undefined,
+      }} />
+    </div>
+  )
+}
+
+function Frame({ w, editing, paused, area, glass }: { w: WidgetInstance; editing: boolean; paused: boolean; area: { width: number; height: number }; glass: GlassCtx }) {
   const def = CATALOG[w.type]
   const [live, setLive] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const r = live ?? { x: w.x, y: w.y, w: w.w, h: w.h }
@@ -129,9 +164,14 @@ function Frame({ w, editing, paused, area }: { w: WidgetInstance; editing: boole
     ...(w.textColor ? { "--fg": w.textColor, "--muted": `color-mix(in srgb, ${w.textColor} 68%, transparent)`, "--dim": `color-mix(in srgb, ${w.textColor} 45%, transparent)`, color: w.textColor } : {}),
   } as CSSProperties
   const C = def.component
+  const bg = w.bg ?? "default"
+  // vidro: sempre; padrão: quando há desfoque e o fundo não é totalmente opaco
+  const glassBlur = def.bare ? -1 : bg === "glass" ? Math.max(12, glass.blur) : bg === "default" && glass.blur > 0 && !glass.solid ? glass.blur : -1
+  const hasGlass = glassBlur >= 0 && !!glass.wp && glass.wp.kind !== "none"
   return (
-    <div className={"wg font-" + w.font + (def.bare ? " wg-bare" : " wg-bg-" + (w.bg ?? "default")) + (editing ? " wg-edit" : "") + (w.locked ? " wg-locked" : "")} style={style}
+    <div className={"wg font-" + w.font + (def.bare ? " wg-bare" : " wg-bg-" + bg) + (hasGlass ? " wg-has-glass" : "") + (editing ? " wg-edit" : "") + (w.locked ? " wg-locked" : "")} style={style}
       data-interactive={editing || def.interactive ? "true" : "false"} onPointerDown={drag("move")} aria-label={def.name}>
+      {hasGlass && <Glass ctx={glass} r={r} blur={glassBlur} />}
       <Isolate name={def.name}>
         <Suspense fallback={null}>
           <C w={w} paused={paused} editing={editing} update={(config) => updateWidget(w.id, { config })} />

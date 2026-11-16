@@ -56,6 +56,11 @@ function browserBridge(): Native {
     "weather:sub": async () => ({ error: "O clima é buscado pelo app desktop." }), "weather:unsub": () => {}, "weather:refresh": async () => null,
     "weather:search": async () => [],
     "games:get": () => ({ current: null, history: [] }),
+    // testes no navegador: ?wallpaper=<endereço> simula um papel de parede (sem isso, nada é inventado)
+    "wallpaper:get": () => {
+      const u = new URLSearchParams(location.search).get("wallpaper")
+      return u ? { kind: "image", url: u, style: "fill", width: 1920, height: 1080, color: null } : { kind: "none", reason: "O papel de parede é lido pelo app desktop." }
+    },
     "net:text": async (url: string) => (await fetch(url)).text(),
     "sports:get": async () => [], "sports:teams": async () => [], "team:search": async () => [], "team:card": async () => null,
     "valorant:agent": () => null, "sysaudio:viz": () => ({ ok: false }),

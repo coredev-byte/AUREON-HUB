@@ -37,7 +37,7 @@ export const NUM_FONTS: Record<NumFont, { label: string; family: string }> = {
   majormono: { label: "Major Mono", family: "'Major Mono Display', monospace" },
 }
 const SHADOW = { none: "none", soft: "0 8px 24px rgba(0,0,0,.28)", strong: "0 16px 44px rgba(0,0,0,.5)" }
-const NOTCH = { black: "#050506", graphite: "#16161a" }
+const NOTCH = { black: "#000000", graphite: "#161618" }
 
 type ThemeInput = Pick<Settings, "accent" | "surface" | "font" | "radius" | "reduceMotion"> & Partial<Settings>
 export function applyTheme(s: ThemeInput, root = document.documentElement) {

@@ -73,18 +73,23 @@ export function NotchApp() {
     return () => { window.removeEventListener("mousemove", move); document.removeEventListener("mouseleave", out); window.removeEventListener("blur", out) }
   }, [])
 
+  // crescendo usa a mola (passa um pouco e assenta); encolhendo vai direto
+  const size = sizeOf(s.mode, { idleClock: ns?.idleClock ?? true, fullscreen: fsHere })
+  const prevArea = useRef(size.w * size.h)
+  const grow = size.w * size.h > prevArea.current
+  useEffect(() => { prevArea.current = size.w * size.h }, [size.w, size.h])
   if (!ns || !settings) return null
-  const size = sizeOf(s.mode, { idleClock: ns.idleClock, fullscreen: fsHere })
   const style = { "--w": size.w + "px", "--h": size.h + "px", "--r": size.r + "px" } as CSSProperties
   return (
     <div className="notch-stage">
       <div className="notch-zoom" style={{ transform: `scale(${ns.scale})` }}>
         <div
-          ref={shape} className="notch" data-mode={fsHere ? "fullscreen" : s.mode} style={style}
+          ref={shape} className="notch" data-mode={fsHere ? "fullscreen" : s.mode} data-grow={grow} style={style}
           role="region" aria-label="Notch do Aureon"
           onClick={(e) => { if ((e.target as HTMLElement).closest("button,[data-noclick]")) return; dispatch({ type: "click" }) }}
           onContextMenu={(e) => { e.preventDefault(); void invoke("notch:menu") }}
         >
+          <div className="notch-shadow" aria-hidden />
           <div className="notch-clip">
             {fsHere ? <FullscreenPill share={share} /> : <Content s={s} dispatch={dispatch} share={share} media={session} idleClock={ns.idleClock} widgetsOn={widgets?.enabled ?? true} />}
           </div>
@@ -125,7 +130,7 @@ function MediaCompact({ m, hover }: { m: MediaSession; hover: boolean }) {
   return (
     <>
       {m.art ? <img className="n-art" src={m.art} alt="" /> : <span className="n-art" style={{ display: "grid", placeItems: "center" }}><Music2 size={12} /></span>}
-      <span className="truncate grow" style={{ color: "#d7d6db", fontSize: 12, textAlign: "left" }}>{hover ? `${m.title} · ${m.artist}` : m.title}</span>
+      <span className="truncate grow" style={{ color: "#fff", fontSize: 12, textAlign: "left" }}>{hover ? `${m.title} · ${m.artist}` : m.title}</span>
       <span className="n-bars" data-paused={!m.playing}><i /><i /><i /></span>
     </>
   )
@@ -142,7 +147,7 @@ function SharingCompact({ share, hover }: { share: SharePublic; hover: boolean }
       <span className="grow" />
       {hover && warn && <TriangleAlert size={13} color="var(--warn)" />}
       {!!share.requests && <span style={{ color: "var(--warn)", fontSize: 11.5 }}>{share.requests} pedido{share.requests > 1 ? "s" : ""}</span>}
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#c9c8ce", fontSize: 12 }}><Eye size={13} />{share.viewers ?? 0}</span>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "var(--sh-muted)", fontSize: 12 }}><Eye size={13} />{share.viewers ?? 0}</span>
     </>
   )
 }
@@ -315,7 +320,7 @@ function ShareTab({ share }: { share: SharePublic }) {
   )
 }
 const CONN: Record<string, string> = { good: "boa", fair: "razoável", poor: "fraca", reconnecting: "reconectando", offline: "sem servidor" }
-const CONN_COLOR: Record<string, string> = { good: "var(--ok)", fair: "#e9e8ec", poor: "var(--warn)", reconnecting: "var(--warn)", offline: "var(--bad)" }
+const CONN_COLOR: Record<string, string> = { good: "var(--ok)", fair: "#fff", poor: "var(--warn)", reconnecting: "var(--warn)", offline: "var(--bad)" }
 
 function ActivityTab() {
   const list = useNotices()

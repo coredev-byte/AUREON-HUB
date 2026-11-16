@@ -1,44 +1,54 @@
 /* Notch Carbono: peça preta presa ao topo da tela, cantos de baixo arredondados e "orelhas" côncavas
-   ligando-a à borda (o mesmo desenho do Carbono do Widgy). Tamanho anima só com width/height. */
+   ligando-a à borda (o mesmo desenho do Carbono do Widgy).
+   Desempenho: só o contorno muda de tamanho; o conteúdo aberto tem tamanho fixo (não recalcula a cada quadro)
+   e entra com opacidade/transform, que a GPU anima sem repintar. */
 .notch-stage { position: fixed; inset: 0; display: flex; justify-content: center; align-items: flex-start; pointer-events: none; }
 .notch-zoom { transform-origin: top center; }
 .notch {
-  --nbg: var(--notch-bg, #050506); --ear: 11px;
-  position: relative; pointer-events: auto; background: var(--nbg); color: #f1f0f3;
+  --nbg: var(--notch-bg, #000); --ear: 11px;
+  /* abrir: mola curta (passa um pouco e assenta); fechar: direto, sem quicar */
+  --n-open: cubic-bezier(0.34, 1.32, 0.5, 1); --n-close: cubic-bezier(0.32, 0.72, 0, 1);
+  --n-dur: calc(var(--t-slow) * 1.05);
+  position: relative; pointer-events: auto; background: var(--nbg); color: var(--sh-fg);
   width: var(--w); height: var(--h); border-radius: 0 0 var(--r) var(--r);
-  transition: width var(--t-slow) cubic-bezier(0.32, 0.72, 0, 1), height var(--t-slow) cubic-bezier(0.32, 0.72, 0, 1), border-radius var(--t-slow) cubic-bezier(0.32, 0.72, 0, 1), box-shadow var(--t-slow);
+  transition: width var(--n-dur) var(--n-close), height var(--n-dur) var(--n-close), border-radius var(--n-dur) var(--n-close);
   will-change: width, height; contain: layout style;
+  box-shadow: inset 0 -1px 0 var(--notch-border, transparent);
 }
-.notch::before, .notch::after { content: ""; position: absolute; top: 0; width: var(--ear); height: var(--ear); pointer-events: none; }
-.notch::before { left: calc(-1 * var(--ear) + 0.5px); background: radial-gradient(circle at 0 100%, transparent calc(var(--ear) - 0.5px), var(--nbg) var(--ear)); }
-.notch::after { right: calc(-1 * var(--ear) + 0.5px); background: radial-gradient(circle at 100% 100%, transparent calc(var(--ear) - 0.5px), var(--nbg) var(--ear)); }
-.notch[data-mode="expanded"], .notch[data-mode="notification"], .notch[data-mode="alert"] { box-shadow: 0 14px 40px rgba(0, 0, 0, 0.42), inset 0 -1px 0 var(--notch-border, transparent); }
-.notch { box-shadow: inset 0 -1px 0 var(--notch-border, transparent); }
-.notch-clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
-.notch-content { position: absolute; inset: 0; display: flex; align-items: center; animation: nIn 180ms var(--ease) both; }
-@keyframes nIn { from { opacity: 0; filter: blur(2px); } }
-:root[data-motion="reduce"] .notch-content { animation: none; }
+.notch[data-grow="true"] { --n-dur: calc(var(--t-slow) * 1.3); transition-timing-function: var(--n-open); }
+/* orelhas: 1 px de sobreposição com o corpo para não abrir fresta em escala não inteira */
+.notch::before, .notch::after { content: ""; position: absolute; top: 0; width: calc(var(--ear) + 1px); height: var(--ear); pointer-events: none; }
+.notch::before { left: calc(-1 * var(--ear)); background: radial-gradient(circle at 0 100%, transparent calc(var(--ear) - 0.6px), var(--nbg) var(--ear)); background-size: var(--ear) var(--ear); background-repeat: no-repeat; box-shadow: inset -1px 0 0 var(--nbg); }
+.notch::after { right: calc(-1 * var(--ear)); background: radial-gradient(circle at 100% 100%, transparent calc(var(--ear) - 0.6px), var(--nbg) var(--ear)); background-size: var(--ear) var(--ear); background-repeat: no-repeat; background-position: right top; box-shadow: inset 1px 0 0 var(--nbg); }
+/* sombra só no painel/avisos, numa camada própria que aparece por opacidade (sem repintar sombra animada) */
+.notch-shadow { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5); transition: opacity var(--n-dur) var(--n-close); }
+.notch[data-mode="expanded"] .notch-shadow, .notch[data-mode="notification"] .notch-shadow, .notch[data-mode="alert"] .notch-shadow { opacity: 1; }
+.notch-clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; isolation: isolate; }
+.notch-content { position: absolute; inset: 0; display: flex; align-items: center; animation: nIn calc(var(--t) * 1.1) var(--ease) both; }
+@keyframes nIn { from { opacity: 0; transform: scale(0.96); } }
+:root[data-motion="reduce"] .notch-content, :root[data-motion="reduce"] .n-panel { animation: none; }
 
 /* conteúdo compacto */
 .n-compact { padding: 0 14px; gap: 9px; justify-content: center; width: 100%; font-size: 12px; }
-.n-clock { font-family: var(--font-num); font-size: 13px; font-weight: 500; letter-spacing: 0.01em; color: #d7d6db; }
+.n-clock { font-family: var(--font-num); font-size: 13px; font-weight: 500; letter-spacing: 0.01em; color: #fff; }
 .n-art { width: 22px; height: 22px; border-radius: 6px; object-fit: cover; flex: none; background: var(--sh-2); }
 .n-bars { display: flex; align-items: flex-end; gap: 2px; height: 12px; flex: none; }
-.n-bars i { width: 3px; border-radius: 1.5px; background: var(--accent); height: 30%; animation: bar 900ms ease-in-out infinite; }
+.n-bars i { width: 3px; height: 100%; border-radius: 1.5px; background: var(--accent); transform-origin: 50% 100%; transform: scaleY(0.3); animation: bar 900ms ease-in-out infinite; will-change: transform; }
 .n-bars i:nth-child(2) { animation-delay: -300ms; } .n-bars i:nth-child(3) { animation-delay: -600ms; }
-.n-bars[data-paused="true"] i { animation-play-state: paused; height: 25%; background: var(--sh-dim); }
-@keyframes bar { 0%, 100% { height: 25%; } 50% { height: 100%; } }
-:root[data-motion="reduce"] .n-bars i { animation: none; height: 60%; }
+.n-bars[data-paused="true"] i { animation: none; transform: scaleY(0.25); background: var(--sh-dim); }
+@keyframes bar { 0%, 100% { transform: scaleY(0.25); } 50% { transform: scaleY(1); } }
+:root[data-motion="reduce"] .n-bars i { animation: none; transform: scaleY(0.6); }
 .n-live { display: inline-flex; align-items: center; gap: 6px; color: #fff; font-weight: 600; font-size: 11.5px; letter-spacing: 0.02em; }
 .n-live .dot { width: 7px; height: 7px; background: var(--live); animation: pulse 1.6s ease-in-out infinite; }
 
 /* aviso */
 .n-notice { padding: 10px 14px 12px 18px; gap: 12px; width: 100%; }
-.n-notice-icon { width: 40px; height: 40px; border-radius: 12px; background: var(--sh-2); display: grid; place-items: center; flex: none; overflow: hidden; color: #cfced3; }
+.n-notice-icon { width: 40px; height: 40px; border-radius: 12px; background: var(--sh-2); display: grid; place-items: center; flex: none; overflow: hidden; color: #fff; }
 .n-notice-icon img { width: 100%; height: 100%; object-fit: cover; }
 .n-notice-title { font-weight: 600; font-size: 13px; }
 .n-notice-body { font-size: 12px; color: var(--sh-muted); }
-.n-btn { height: 28px; padding: 0 12px; border-radius: 14px; border: 0; background: var(--sh-2); color: #f1f0f3; font-size: 12px; font-weight: 500; transition: background var(--t-fast); }
+.n-btn { height: 28px; padding: 0 12px; border-radius: 14px; border: 0; background: var(--sh-2); color: #fff; font-size: 12px; font-weight: 500; transition: background var(--t-fast), transform var(--t-fast); }
+.n-btn:active { transform: scale(0.96); }
 .n-btn:hover { background: var(--sh-3); }
 .n-btn-primary { background: var(--accent); color: var(--on-accent); }
 .n-btn-primary:hover { background: color-mix(in srgb, var(--accent) 88%, #fff); }
@@ -46,21 +56,26 @@
 .n-btn-danger:hover { background: #4a1d1b; }
 
 /* painel aberto */
-.n-panel { position: absolute; inset: 0; padding: 14px 18px 16px; display: flex; flex-direction: column; animation: nIn 200ms var(--ease) 60ms both; }
+.n-panel {
+  position: absolute; top: 0; left: 50%; width: var(--panel-w, 860px); height: var(--panel-h, 336px); margin-left: calc(var(--panel-w, 860px) / -2);
+  padding: 14px 18px 16px; display: flex; flex-direction: column; contain: strict;
+  animation: nPanel calc(var(--t-slow) * 1.1) var(--ease) calc(var(--t-fast) * 0.6) both;
+}
+@keyframes nPanel { from { opacity: 0; transform: translateY(-6px) scale(0.985); } }
 .n-tabs { display: flex; gap: 2px; padding: 3px; background: var(--sh-1); border-radius: 12px; }
 .n-tabs button { height: 26px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--sh-muted); font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; transition: background var(--t-fast), color var(--t-fast); }
-.n-tabs button:hover { color: #e9e8ec; }
-.n-tabs button[aria-selected="true"] { background: var(--sh-3); color: #f4f3f6; }
+.n-tabs button:hover { color: #fff; }
+.n-tabs button[aria-selected="true"] { background: var(--sh-3); color: #fff; }
 .n-card { background: var(--sh-1); border-radius: 16px; padding: 12px 14px; min-width: 0; }
 .n-icon-btn { width: 30px; height: 30px; border-radius: 10px; border: 0; background: transparent; color: var(--sh-muted); display: inline-grid; place-items: center; transition: background var(--t-fast), color var(--t-fast), transform var(--t-fast); }
 .n-icon-btn:hover { background: var(--sh-2); color: #fff; }
 .n-icon-btn:active { transform: scale(0.92); }
 .n-icon-btn:disabled { opacity: 0.35; pointer-events: none; }
-.n-play { width: 38px; height: 38px; border-radius: 50%; background: #f1f0f3; color: #0b0b0c; }
-.n-play:hover { background: #fff; color: #000; }
+.n-play { width: 38px; height: 38px; border-radius: 50%; background: #fff; color: #000; }
+.n-play:hover { background: #fff; color: #000; transform: scale(1.04); }
 .n-progress { position: relative; height: 4px; border-radius: 2px; background: var(--sh-3); cursor: pointer; }
-.n-progress > i { position: absolute; inset: 0 auto 0 0; border-radius: 2px; background: #e9e8ec; }
-.n-chip { height: 30px; padding: 0 12px; border-radius: 10px; border: 0; background: var(--sh-1); color: #c9c8ce; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 7px; transition: background var(--t-fast); }
+.n-progress > i { position: absolute; inset: 0 auto 0 0; border-radius: 2px; background: #fff; }
+.n-chip { height: 30px; padding: 0 12px; border-radius: 10px; border: 0; background: var(--sh-1); color: var(--sh-muted); font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 7px; transition: background var(--t-fast); }
 .n-chip:hover { background: var(--sh-2); color: #fff; }
 .n-chip[aria-pressed="true"] { color: #fff; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent); }
 .n-list { overflow: auto; scrollbar-width: none; }
@@ -71,15 +86,18 @@
 
 /* peças do painel Carbono (aba Mídia), com as cores do notch */
 .notch {
-  --sh-fg: #f1f0f3; --sh-muted: #9a99a0; --sh-dim: var(--sh-dim); --sh-on-fg: var(--sh-1);
+  --sh-fg: #fff; --sh-muted: #a4a4a9; --sh-dim: #6c6c72; --sh-on-fg: #000;
   --sh-1: color-mix(in srgb, var(--nbg) 92%, #fff); --sh-2: color-mix(in srgb, var(--nbg) 86%, #fff); --sh-3: color-mix(in srgb, var(--nbg) 78%, #fff);
   --sh-accent: var(--accent);
 }
 .sh { color: var(--sh-fg); }
 .sh-card { background: var(--sh-1); border-radius: 18px; }
-.sh-btn { display: flex; align-items: center; justify-content: center; border-radius: 12px; color: var(--sh-muted); border: 0; background: transparent; transition: background .15s, color .15s, transform .15s; }
+.sh-btn { display: flex; align-items: center; justify-content: center; border-radius: 12px; color: var(--sh-muted); border: 0; padding: 0; background: transparent; transition: background var(--t-fast), color var(--t-fast), transform var(--t-fast); }
 .sh-btn:hover { background: var(--sh-2); color: var(--sh-fg); }
 .sh-btn:active { transform: scale(.92); }
 .sh-btn:disabled { pointer-events: none; }
 @keyframes vinyl-spin { to { transform: rotate(360deg); } }
 :root[data-motion="reduce"] .n-panel [style*="vinyl-spin"] { animation: none !important; }
+
+/* botões dentro do notch: sem a borda/fundo padrão do navegador (o notch não usa o reset do Tailwind) */
+@layer base { .notch button { border: 0; background: transparent; padding: 0; color: inherit; } }

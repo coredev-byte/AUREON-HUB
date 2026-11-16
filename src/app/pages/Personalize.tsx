@@ -62,7 +62,7 @@ export default function Personalize() {
   const swatch = (list: { c: string; n: string }[], cur: string, key: "accent" | "surface") => (
     <div className="row" style={{ gap: 6, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: 360 }}>
       {list.map((a) => <button key={a.c} type="button" className="swatch" title={a.n} aria-label={a.n} aria-pressed={cur.toLowerCase() === a.c.toLowerCase()} style={{ background: a.c, boxShadow: key === "surface" ? "inset 0 0 0 1px rgba(255,255,255,.14)" : undefined }} onClick={() => set({ [key]: a.c })} />)}
-      <input type="color" aria-label={key === "accent" ? "Outra cor de destaque" : "Outra cor de fundo"} value={cur} onChange={(e) => set({ [key]: e.target.value })} style={{ width: 30, height: 28, border: 0, background: "transparent", padding: 0 }} />
+      <input type="color" aria-label={key === "accent" ? "Outra cor de destaque" : "Outra cor de fundo"} value={cur} onChange={(e) => set({ [key]: e.target.value })} title="Outra cor" />
     </div>
   )
   return (
@@ -113,7 +113,7 @@ export default function Personalize() {
 
       <Section title="Widgets" desc="Visual padrão de todos os widgets (cada um ainda pode ter opacidade, fonte e cor próprias em Widgets).">
         <Setting title="Fundo" desc="Quanto do papel de parede aparece por trás."><Slider label="Opacidade do fundo dos widgets" min={0.2} max={1} step={0.02} value={s.widgetBg} onChange={(v) => set({ widgetBg: v })} format={(v) => Math.round(v * 100) + "%"} /></Setting>
-        <Setting title="Desfoque" desc="Efeito de vidro. 0 = desligado (mais leve)."><Slider label="Desfoque dos widgets" min={0} max={30} step={1} value={s.widgetBlur} onChange={(v) => set({ widgetBlur: v })} format={(v) => v + " px"} /></Setting>
+        <Setting title="Desfoque" desc="O papel de parede aparece desfocado por trás dos widgets. 0 = desligado. Com papel de parede animado (Wallpaper Engine, Lively), os widgets ficam só translúcidos."><Slider label="Desfoque dos widgets" min={0} max={30} step={1} value={s.widgetBlur} onChange={(v) => set({ widgetBlur: v })} format={(v) => v + " px"} /></Setting>
         <Setting title="Arredondamento"><Slider label="Arredondamento dos widgets" min={4} max={28} step={1} value={s.widgetRadius} onChange={(v) => set({ widgetRadius: v })} format={(v) => v + " px"} /></Setting>
         <Setting title="Sombra"><Segmented label="Sombra dos widgets" value={s.widgetShadow} onChange={(v) => set({ widgetShadow: v })} options={[{ value: "none", label: "Nenhuma" }, { value: "soft", label: "Suave" }, { value: "strong", label: "Forte" }]} /></Setting>
         <Setting title="Contorno"><Switch label="Contorno dos widgets" checked={s.widgetBorder} onChange={(v) => set({ widgetBorder: v })} /></Setting>

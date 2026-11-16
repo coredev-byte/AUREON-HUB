@@ -1,4 +1,33 @@
-# Relatório da reconstrução: Widgy → Aureon Hub 0.3.0
+# Relatório da reconstrução: Widgy → Aureon Hub 0.4.0
+
+## 0.4.0 (pedido do usuário: revisar design e cantos, notch bem preto e branco, animações fluidas e leves)
+
+- **Notch preto de verdade:** o fundo passou de #050506 para #000000 e todo o texto e os ícones de dentro para #ffffff. Os tons cinza (secundário, apagado) foram reequilibrados sobre o preto puro.
+- **Defeitos de design corrigidos:**
+  - A cor "apagada" do notch apontava para ela mesma (`--sh-dim: var(--sh-dim)`) e ficava inválida, então alguns ícones e textos sumiam (ex.: nuvem do clima, hora na lista de avisos). Agora ela tem um valor próprio.
+  - O seletor de player na aba Mídia aparecia com a borda branca padrão do navegador. Os botões do notch e do app perderam a borda e o fundo padrão.
+  - A área de letra da aba Mídia terminava 10 px antes das outras colunas. Agora ocupa toda a altura do painel.
+  - Orelhas do notch: 1 px de sobreposição com o corpo, para não abrir fresta com a escala do notch fora de 100%.
+  - O seletor "outra cor" (Personalização) tinha o visual nativo do Windows. Agora tem o mesmo formato das amostras.
+- **Animações:**
+  - Abrir usa uma mola curta: passa ~2% do tamanho e assenta. Medido: 236 → 881 → 860 px. Fechar vai direto, sem quicar.
+  - O conteúdo entra só com opacidade e escala. O desfoque animado (`filter: blur`) que existia foi removido, porque é caro de pintar.
+  - A sombra do painel fica numa camada própria e aparece por opacidade, sem repintar uma sombra que muda de tamanho.
+  - O painel aberto tem tamanho fixo e é só revelado pelo contorno. Antes, toda a grade era recalculada a cada quadro da abertura.
+- **Consumo:**
+  - As barrinhas de música do notch fechado animavam a altura, o que recalculava o layout continuamente enquanto houvesse música. Agora usam `transform`, que a placa de vídeo anima sozinha.
+  - Medido no Chromium em 5 s tocando: antes, 310 recálculos de layout e 122 ms de processador; agora, 0 recálculos e 23 ms.
+- **Vidro de verdade nos widgets:**
+  - Antes, o "vidro fosco" e o "Desfoque" usavam `backdrop-filter`. Numa janela transparente, o navegador não enxerga o papel de parede do Windows, então o efeito não desfocava nada e só gastava GPU.
+  - Agora o app lê o papel de parede atual (`TranscodedWallpaper` e o registro), reduz para uma miniatura de 960 px e cada widget desenha essa imagem desfocada e alinhada com a tela. Isso respeita os estilos preencher, ajustar, estender, centralizar e lado a lado, a área sem a barra de tarefas e a escala do monitor.
+  - A camada é estática: o navegador desfoca uma vez e reaproveita.
+  - Com o Wallpaper Engine ou o Lively ativos, a imagem salva não corresponde ao que aparece na tela. Nesse caso o vidro fica só translúcido, sem fingir um desfoque errado.
+  - O papel de parede é conferido a cada minuto e quando os monitores mudam.
+  - Limite: com "estender" (uma imagem para todos os monitores), cada monitor usa a imagem inteira em modo preencher.
+- **Responsivo:** com a janela estreita (ou o texto maior), a barra lateral vira só ícones, com o nome ao passar o mouse. As grades passam de 3 para 2 colunas, e de 2 para 1, e a página de Widgets e a de Transmissão empilham as colunas.
+- **Testes:** `tests/wallpaper.test.mjs` cobre a leitura do registro, os estilos e o alinhamento, além de não inventar papel de parede fora do Windows. A leitura de uma imagem sem extensão foi conferida no Electron real. São 63 testes unitários, mais e2e, TURN, smoke do Electron e clique real no notch.
+- **Não testado em hardware real:** a aparência final do vidro sobre o papel de parede real do Windows e a detecção do Wallpaper Engine.
+
 
 ## 0.3.0 (pedido do usuário: letras, mídia do Carbono, capas, fundos, cores e interface)
 

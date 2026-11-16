@@ -134,7 +134,7 @@ function LiveHost({ onPick }: { onPick: () => void }) {
   const copy = (txt: string, what: string) => { void navigator.clipboard.writeText(txt); setCopied(what); setTimeout(() => setCopied(""), 1500) }
   const st = h.stats
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.5fr) minmax(280px, 1fr)", gap: 14 }}>
+    <div className="split" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.5fr) minmax(280px, 1fr)", gap: 14 }}>
       <div className="col" style={{ gap: 14 }}>
         <div className="card" style={{ overflow: "hidden", position: "relative" }}>
           <video ref={video} autoPlay muted playsInline style={{ width: "100%", aspectRatio: "16 / 9", background: "#000", display: "block" }} aria-label="Pré-visualização local" />

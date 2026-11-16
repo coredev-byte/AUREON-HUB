@@ -37,7 +37,7 @@ export function CarbonoMediaTab() {
   const repeat = (fresh?.repeat ?? m?.repeat ?? 0) as 0 | 1 | 2
   const noCtl = "O player não permite isso pelo Windows"
   return (
-    <div className="sh grid h-[252px] gap-3" style={{ gridTemplateColumns: "236px minmax(0,1fr) 262px" }}>
+    <div className="sh grid h-full gap-3" style={{ gridTemplateColumns: "236px minmax(0,1fr) 262px" }}>
       <div className="flex items-center justify-center">
         <ReactiveCover art={m?.art} playing={!!m?.playing} size={214} />
       </div>

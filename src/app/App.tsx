@@ -39,7 +39,7 @@ export function App() {
   if (!settings) return null
   const Page = PAGES[page]
   const item = (n: { id: Page; label: string; icon: typeof Home }) => (
-    <button key={n.id} type="button" className="nav-item" aria-current={page === n.id ? "page" : undefined} onClick={() => go(n.id)}>
+    <button key={n.id} type="button" className="nav-item" title={n.label} aria-current={page === n.id ? "page" : undefined} onClick={() => go(n.id)}>
       <n.icon size={16} />{n.label}
       {n.id === "share" && share.active && share.role === "host" && <span className="nav-extra badge badge-live" style={{ height: 18, fontSize: 10 }}>AO VIVO</span>}
       {n.id === "share" && share.active && share.role === "viewer" && <span className="nav-extra badge" style={{ height: 18, fontSize: 10 }}>assistindo</span>}

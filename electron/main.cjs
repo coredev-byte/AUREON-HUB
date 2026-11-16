@@ -22,6 +22,7 @@ const sportsMod = require("./integrations/widgy/sports.cjs")
 const teamsMod = require("./integrations/widgy/teams.cjs")
 const valorant = require("./integrations/widgy/gamestats.cjs")
 const sysaudio = require("./integrations/widgy/sysaudio.cjs")
+const { createWallpaper } = require("./integrations/wallpaper.cjs")
 
 const SMOKE = process.env.AUREON_SMOKE === "1"
 if (!SMOKE && !app.requestSingleInstanceLock()) { app.quit(); process.exit(0) }
@@ -29,7 +30,7 @@ app.setAppUserModelId("com.aureon.hub")
 if (process.defaultApp) app.setAsDefaultProtocolClient("aureon", process.execPath, [path.resolve(process.argv[1])])
 else app.setAsDefaultProtocolClient("aureon")
 
-let store, notch, widgets, monitor, notifications, capture, media, system, weather, games, updates
+let store, notch, widgets, monitor, notifications, capture, media, system, weather, games, updates, wallpaper
 let mainWin = null, tray = null, quitting = false
 let shareState = { active: false }, blocker = null
 
@@ -145,6 +146,7 @@ function registerIpc() {
   h("weather:refresh", any, () => weather.refresh())
   h("weather:search", any, (_e, q) => weather.search(q))
   h("games:get", any, () => games.get())
+  h("wallpaper:get", any, () => wallpaper.get())
   // widgets portados do Widgy: texto de URLs públicas (pelo principal, com limites), esportes, times e Valorant
   h("net:text", any, (_e, url) => fetchSafeText(net.fetch.bind(net), String(url || "")))
   const relay = { isDestroyed: () => false, webContents: { send: (ch, d) => broadcast(ch, d) } }
@@ -241,6 +243,7 @@ app.whenReady().then(() => {
   system = createSystem({ broadcast, appMetrics: () => app.getAppMetrics() })
   weather = createWeather({ fetch: net.fetch.bind(net), broadcast, getCity: () => state().settings.city })
   games = createGames({ broadcast })
+  wallpaper = createWallpaper({ nativeImage, broadcast })
   updates = createUpdater({ app, broadcast, getSettings: () => state().settings, notify: (n) => notifications.push(n) })
   capture = createCapture()
   monitor = createMonitor({
@@ -271,13 +274,14 @@ app.whenReady().then(() => {
     if (section === "notch" || section === "widgets") updateTray()
   })
   for (const ev of ["display-added", "display-removed", "display-metrics-changed"]) {
-    screen.on(ev, () => { notch.sync(); widgets.sync(); broadcast("displays:changed", null) })
+    screen.on(ev, () => { notch.sync(); widgets.sync(); broadcast("displays:changed", null); void wallpaper.refresh() })
   }
 
   createMain()
   notch.sync()
   widgets.sync()
   monitor.start()
+  wallpaper.start()
   applyHotkey()
   if (!SMOKE) updates.schedule()
   tray = new Tray(trayImage())
@@ -290,6 +294,6 @@ app.on("window-all-closed", (e) => e.preventDefault())
 app.on("before-quit", () => {
   quitting = true
   globalShortcut.unregisterAll()
-  monitor?.stop(); media?.stop(); updates?.stop(); sysaudio.stop(); system?.stop(); weather?.stop()
+  monitor?.stop(); wallpaper?.stop(); media?.stop(); updates?.stop(); sysaudio.stop(); system?.stop(); weather?.stop()
   store?.flush()
 })
