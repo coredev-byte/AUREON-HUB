@@ -1,4 +1,30 @@
-# Relatório da reconstrução: Widgy → Aureon Hub 0.1.2
+# Relatório da reconstrução: Widgy → Aureon Hub 0.2.0
+
+## 0.2.0 (a partir do segundo vídeo do usuário)
+
+- **Widgets sumiam depois de "Concluir".**
+  - Causa: a camada era mandada para o fundo da pilha de janelas do Windows, que fica *atrás* da área de trabalho e do papel de parede (Wallpaper Engine incluso).
+  - Agora ela fica logo acima da janela da área de trabalho: na frente do papel de parede e atrás das janelas comuns. Continua mexendo só na própria janela, sem reparentar nada do Explorer.
+  - A posição é reafirmada a cada 20 s.
+- **Widgets do Widgy portados**, com o mesmo visual e as mesmas opções:
+  - Clima (céu animado, próximas horas, previsão completa e cidade por widget);
+  - Futebol (ESPN), CS2 (Liquipedia), Valorant partidas (VLR);
+  - Time favorito (placar, último e próximo jogo, forma);
+  - Agente do Valorant: arte oficial animada, mapa de fundo, troca sozinha pelo agente escolhido na partida via API local do Riot, modelos e imagens próprias.
+  - Testado no Electron com internet de verdade: Brasileirão, CS2 e Corinthians carregaram; a Jett animada apareceu.
+  - O clima e às vezes a Liquipedia responderam "429" (limite de pedidos) a partir do IP compartilhado do servidor de testes. Não é defeito do código.
+- **Personalização ampliada:**
+  - 6 temas prontos;
+  - 10 cores de destaque e 8 de fundo, além de cor livre;
+  - 6 fontes de interface e 8 de números, todas offline;
+  - tamanho do texto;
+  - relógio 12/24 h;
+  - visual dos widgets: fundo, desfoque, arredondamento, sombra e contorno;
+  - cor e contorno do notch;
+  - velocidade das animações;
+  - prévia ao vivo.
+- **TURN sem VPS:** o servidor de sinalização (1.1.0) busca credenciais temporárias na Cloudflare (gratuito) ou na Metered. Passo a passo em `docs/servidor-transmissao.md`.
+
 
 ## Novidade 0.1.2: atualizar pelo próprio app
 

@@ -9,7 +9,8 @@ services:
     envVars:
       - key: TRUST_PROXY
         value: "1"
-      - key: TURN_URLS
+      # TURN gratuito da Cloudflare (recomendado): Realtime > TURN Server > criar chave
+      - key: CF_TURN_KEY_ID
         sync: false
-      - key: TURN_SECRET
+      - key: CF_TURN_API_TOKEN
         sync: false

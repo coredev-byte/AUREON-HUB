@@ -17,7 +17,7 @@ export const isElectron = typeof window !== "undefined" && !!window.aureon
 
 /* ---------- imitação para o navegador ---------- */
 const DEFAULT_STATE: AppState = {
-  settings: { accent: "#0B7BFA", surface: "#0E0E10", font: "inter", radius: 14, reduceMotion: false, launchAtLogin: false, signalUrl: "", city: null, units: "c", hotkey: "CommandOrControl+Alt+Space", hotkeyOn: true, onboarded: false, autoCheck: true, autoUpdate: true },
+  settings: { accent: "#0B7BFA", surface: "#0E0E10", font: "inter", numFont: "grotesk", radius: 14, reduceMotion: false, animSpeed: 1, textScale: 1, hour12: false, widgetBg: 0.88, widgetBlur: 14, widgetBorder: true, widgetShadow: "soft", widgetRadius: 14, notchColor: "black", notchBorder: false, launchAtLogin: false, signalUrl: "", city: null, units: "c", hotkey: "CommandOrControl+Alt+Space", hotkeyOn: true, onboarded: false, autoCheck: true, autoUpdate: true },
   notch: { enabled: true, displays: "primary", idleClock: true, hoverExpand: true, hoverDelay: 140, scale: 1, showMedia: true, mediaSource: "", notifications: true, fullscreenIndicator: true },
   widgets: { enabled: true, activeProfile: "padrao", hideFullscreen: true, editMode: false },
   profiles: { items: [{ id: "padrao", name: "Padrão", widgets: [] }] },
@@ -56,6 +56,9 @@ function browserBridge(): Native {
     "weather:sub": async () => ({ error: "O clima é buscado pelo app desktop." }), "weather:unsub": () => {}, "weather:refresh": async () => null,
     "weather:search": async () => [],
     "games:get": () => ({ current: null, history: [] }),
+    "net:text": async (url: string) => (await fetch(url)).text(),
+    "sports:get": async () => [], "sports:teams": async () => [], "team:search": async () => [], "team:card": async () => null,
+    "valorant:agent": () => null,
     "fs:get": () => ({ fs: false, exe: "", displayId: null, quns: 0, since: Date.now(), helper: "navegador" }),
     "share:sources": () => [{ id: "screen:0:0", name: "Tela inteira", kind: "screen", displayId: "0", thumb: "", icon: "" }],
     "share:select": () => ({ ok: true, audioSupported: false }),

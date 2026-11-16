@@ -17,6 +17,10 @@ const { createWeather } = require("./integrations/weather.cjs")
 const { createGames } = require("./integrations/games.cjs")
 const { probeSignal } = require("./share/probe.cjs")
 const { createUpdater } = require("./core/updater.cjs")
+const { fetchSafeText } = require("./integrations/widgy/net-guard.cjs")
+const sportsMod = require("./integrations/widgy/sports.cjs")
+const teamsMod = require("./integrations/widgy/teams.cjs")
+const valorant = require("./integrations/widgy/gamestats.cjs")
 
 const SMOKE = process.env.AUREON_SMOKE === "1"
 if (!SMOKE && !app.requestSingleInstanceLock()) { app.quit(); process.exit(0) }
@@ -140,6 +144,13 @@ function registerIpc() {
   h("weather:refresh", any, () => weather.refresh())
   h("weather:search", any, (_e, q) => weather.search(q))
   h("games:get", any, () => games.get())
+  // widgets portados do Widgy: texto de URLs públicas (pelo principal, com limites), esportes, times e Valorant
+  h("net:text", any, (_e, url) => fetchSafeText(net.fetch.bind(net), String(url || "")))
+  const relay = { isDestroyed: () => false, webContents: { send: (ch, d) => broadcast(ch, d) } }
+  const fakeIpc = { handle: (ch, fn) => h(ch, any, fn) }
+  sportsMod.register(fakeIpc)
+  teamsMod.register(fakeIpc, sportsMod.teams)
+  valorant.register(fakeIpc, () => relay)
   h("fs:get", any, () => monitor.get())
 
   h("share:sources", need("main"), () => capture.sources())
@@ -235,11 +246,13 @@ app.whenReady().then(() => {
       notch.setFullscreen(fs.fs ? fs.displayId : null)
       widgets.setFullscreen(fs.fs ? fs.displayId : null)
       games.update(fs)
+      // a API local do Riot só é consultada enquanto o Valorant está na frente
+      valorant.onPlaying(fs.fs && /valorant/i.test(fs.exe) ? [{ id: "valorant" }] : [])
       broadcast("fs:state", fs)
     },
   })
   notch = createNotchManager({ getState: state })
-  widgets = createWidgetManager({ getState: state, toBottom: (h) => monitor.toBottom(h) })
+  widgets = createWidgetManager({ getState: state, toDesktop: (h) => monitor.toDesktop(h) })
   registerIpc()
 
   store.onChange((section, value) => {

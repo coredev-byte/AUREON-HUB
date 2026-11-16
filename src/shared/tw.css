@@ -1,0 +1,36 @@
+/* Tailwind só com utilitários (sem o reset): usado pelos widgets portados do Widgy.
+   As cores e fontes apontam para o tema Carbono do Aureon. */
+@layer theme, base, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@source "../widgets/widgy";
+
+@theme inline {
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--accent);
+  --color-accent: var(--accent);
+  --font-num: var(--font-num);
+  --font-ui: var(--font-ui);
+  --font-display: var(--font-display, var(--font-num));
+}
+
+/* classes do Widgy que os widgets usam */
+.btn-icon { width: 30px; padding: 0; }
+.btn-accent { background: var(--accent); border-color: transparent; color: var(--on-accent); }
+.cap-first::first-letter { text-transform: uppercase; }
+.surface { background: var(--s1); border: 1px solid var(--line); border-radius: var(--radius); }
+.field { color: var(--fg); }
+
+/* "reset" do Tailwind só dentro dos widgets portados (o resto do Aureon não muda).
+   :where() deixa a especificidade zerada: classes como .btn continuam valendo. */
+@layer base {
+:where(.widgy, .widgy-settings) :where(*, ::before, ::after) { box-sizing: border-box; border: 0 solid; margin: 0; padding: 0; }
+:where(.widgy, .widgy-settings) :where(button, input, select, textarea) { font: inherit; color: inherit; background: transparent; letter-spacing: inherit; }
+:where(.widgy, .widgy-settings) :where(button) { cursor: pointer; }
+:where(.widgy, .widgy-settings) :where(img, svg, video, canvas) { display: block; vertical-align: middle; }
+:where(.widgy, .widgy-settings) :where(img, video) { max-width: 100%; height: auto; }
+:where(.widgy, .widgy-settings) :where(h1, h2, h3, h4, h5, h6) { font-size: inherit; font-weight: inherit; }
+:where(.widgy, .widgy-settings) :where(ol, ul) { list-style: none; }
+}

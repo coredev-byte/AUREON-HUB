@@ -1,11 +1,14 @@
 import { useNow } from "@/shared/hooks"
 import { cfg, type WidgetProps } from "../catalog"
+import { useSection } from "@/shared/state"
+import { fmtClock } from "@/shared/theme"
 
 export default function Clock({ w, paused }: WidgetProps) {
   const style = cfg<string>(w, "style", "digital"), seconds = cfg(w, "seconds", false), showDate = cfg(w, "date", true)
   // segundos só quando pedidos e quando nada está pausando; senão um re-render por minuto
   const now = useNow(seconds && !paused ? 1000 : 60000)
-  const hm = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+  const hour12 = !!useSection("settings")?.hour12
+  const hm = fmtClock(now, hour12)
   const d = now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })
   const date = d.charAt(0).toUpperCase() + d.slice(1)
   const fit = Math.min(w.w / (seconds ? 5.2 : 3.6), w.h * 0.52)

@@ -1,11 +1,12 @@
 "use strict"
 // Camada de widgets: uma janela transparente por monitor, na área útil (sem cobrir a barra do Windows),
-// atrás das janelas comuns e atravessável pelo mouse fora dos widgets. Não usa WorkerW/Progman nem mexe no
-// Explorer: depois de perder o foco ela é mandada para o fundo da pilha (só a própria janela).
+// atrás das janelas comuns e atravessável pelo mouse fora dos widgets. Não reparenta nada no Explorer: a camada
+// é só posicionada logo acima da janela da área de trabalho (na frente do papel de parede), sempre a própria janela.
+
 const { BrowserWindow, screen } = require("electron")
 const windows = require("../core/windows.cjs")
 
-function createWidgetManager({ getState, toBottom }) {
+function createWidgetManager({ getState, toDesktop }) {
   const wins = new Map() // displayId -> BrowserWindow
   let fsDisplay = null
 
@@ -13,7 +14,11 @@ function createWidgetManager({ getState, toBottom }) {
     const b = w.getNativeWindowHandle()
     return b.length >= 8 ? b.readBigUInt64LE(0).toString() : String(b.readUInt32LE(0))
   }
-  const sendBack = (w) => { if (!w.isDestroyed() && process.platform === "win32") toBottom?.(hwnd(w)) }
+  // logo acima da área de trabalho: na frente do papel de parede (Wallpaper Engine incluso), atrás das janelas
+  const sendBack = (w) => { if (!w.isDestroyed() && w.isVisible() && process.platform === "win32") toDesktop?.(hwnd(w)) }
+  // reafirma a posição de tempos em tempos (outro programa pode ter mexido na pilha da área de trabalho)
+  const keep = setInterval(() => { if (!getState().widgets.editMode) for (const w of wins.values()) sendBack(w) }, 20000)
+  keep.unref?.()
 
   function create(display) {
     const id = String(display.id)

@@ -12,6 +12,7 @@ export interface WidgetProps {
 export type Field =
   | { key: string; label: string; kind: "select"; options: { value: string; label: string }[]; default: string }
   | { key: string; label: string; kind: "toggle"; default: boolean }
+  | { key: string; label: string; kind: "text"; default: string; placeholder?: string }
 
 export interface WidgetDef {
   type: WidgetType
@@ -21,6 +22,10 @@ export interface WidgetDef {
   min: { w: number; h: number }
   /** recebe cliques (botões, texto) mesmo fora do modo de edição */
   interactive: boolean
+  /** painel de opções próprio (widgets portados do Widgy) */
+  Settings?: LazyExoticComponent<ComponentType<{ w: WidgetInstance; set: (p: Record<string, unknown>) => void }>>
+  /** sem fundo/borda do Aureon: o widget desenha o próprio fundo */
+  bare?: boolean
   fields: Field[]
   component: LazyExoticComponent<ComponentType<WidgetProps>>
 }
@@ -36,9 +41,9 @@ export const CATALOG: Record<WidgetType, WidgetDef> = {
     component: lazy(() => import("./types/Clock")),
   },
   weather: {
-    type: "weather", name: "Clima", desc: "Tempo agora e próximos dias (Open-Meteo).", size: { w: 300, h: 170 }, min: { w: 160, h: 100 }, interactive: false,
-    fields: [{ key: "forecast", label: "Mostrar próximos dias", kind: "toggle", default: true }],
-    component: lazy(() => import("./types/Weather")),
+    type: "weather", name: "Clima", desc: "Tempo agora, próximas horas e dias (Open-Meteo), com o visual do Widgy.", size: { w: 320, h: 220 }, min: { w: 180, h: 120 }, interactive: true, bare: true,
+    fields: [{ key: "city", label: "Cidade", kind: "text", default: "", placeholder: "Vazio = a de Configurações (ou São Paulo)" }],
+    component: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.Weather }))),
   },
   media: {
     type: "media", name: "Mídia", desc: "Spotify, YouTube Music e outros players do Windows.", size: { w: 340, h: 140 }, min: { w: 220, h: 96 }, interactive: true,
@@ -65,6 +70,31 @@ export const CATALOG: Record<WidgetType, WidgetDef> = {
       { key: "name", label: "Mostrar nome", kind: "toggle", default: false },
     ],
     component: lazy(() => import("./types/Pet")),
+  },
+  valagent: {
+    type: "valagent", name: "Agente do Valorant", desc: "Arte oficial animada do agente, mapa de fundo e troca sozinha durante a partida.", size: { w: 300, h: 380 }, min: { w: 160, h: 180 }, interactive: true, bare: true,
+    fields: [], Settings: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.ValAgentOptions }))),
+    component: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.ValAgent }))),
+  },
+  cs2: {
+    type: "cs2", name: "CS2", desc: "Partidas ao vivo e próximas (Liquipedia), com seus times.", size: { w: 340, h: 300 }, min: { w: 220, h: 160 }, interactive: true,
+    fields: [], Settings: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.SportsOptions }))),
+    component: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.Sports }))),
+  },
+  valorant: {
+    type: "valorant", name: "Valorant (partidas)", desc: "Partidas do cenário competitivo (VLR.gg).", size: { w: 340, h: 300 }, min: { w: 220, h: 160 }, interactive: true,
+    fields: [], Settings: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.SportsOptions }))),
+    component: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.Sports }))),
+  },
+  football: {
+    type: "football", name: "Futebol", desc: "Jogos ao vivo e próximos (ESPN), por campeonato e time.", size: { w: 340, h: 300 }, min: { w: 220, h: 160 }, interactive: true,
+    fields: [], Settings: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.SportsOptions }))),
+    component: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.Sports }))),
+  },
+  team: {
+    type: "team", name: "Time favorito", desc: "Placar ao vivo, último e próximo jogo do seu time (futebol, CS2, Valorant).", size: { w: 340, h: 210 }, min: { w: 220, h: 130 }, interactive: true, bare: true,
+    fields: [], Settings: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.TeamOptions }))),
+    component: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.Team }))),
   },
   note: {
     type: "note", name: "Nota", desc: "Um bloco de texto rápido.", size: { w: 260, h: 180 }, min: { w: 160, h: 100 }, interactive: true,

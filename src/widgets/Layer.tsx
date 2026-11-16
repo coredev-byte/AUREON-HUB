@@ -129,7 +129,7 @@ function Frame({ w, editing, paused, area }: { w: WidgetInstance; editing: boole
   } as CSSProperties
   const C = def.component
   return (
-    <div className={"wg font-" + w.font + (editing ? " wg-edit" : "") + (w.locked ? " wg-locked" : "")} style={style}
+    <div className={"wg font-" + w.font + (def.bare ? " wg-bare" : "") + (editing ? " wg-edit" : "") + (w.locked ? " wg-locked" : "")} style={style}
       data-interactive={editing || def.interactive ? "true" : "false"} onPointerDown={drag("move")} aria-label={def.name}>
       <Isolate name={def.name}>
         <Suspense fallback={null}>

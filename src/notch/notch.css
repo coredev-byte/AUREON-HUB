@@ -3,7 +3,7 @@
 .notch-stage { position: fixed; inset: 0; display: flex; justify-content: center; align-items: flex-start; pointer-events: none; }
 .notch-zoom { transform-origin: top center; }
 .notch {
-  --nbg: #050506; --ear: 11px;
+  --nbg: var(--notch-bg, #050506); --ear: 11px;
   position: relative; pointer-events: auto; background: var(--nbg); color: #f1f0f3;
   width: var(--w); height: var(--h); border-radius: 0 0 var(--r) var(--r);
   transition: width var(--t-slow) cubic-bezier(0.32, 0.72, 0, 1), height var(--t-slow) cubic-bezier(0.32, 0.72, 0, 1), border-radius var(--t-slow) cubic-bezier(0.32, 0.72, 0, 1), box-shadow var(--t-slow);
@@ -12,7 +12,8 @@
 .notch::before, .notch::after { content: ""; position: absolute; top: 0; width: var(--ear); height: var(--ear); pointer-events: none; }
 .notch::before { left: calc(-1 * var(--ear) + 0.5px); background: radial-gradient(circle at 0 100%, transparent calc(var(--ear) - 0.5px), var(--nbg) var(--ear)); }
 .notch::after { right: calc(-1 * var(--ear) + 0.5px); background: radial-gradient(circle at 100% 100%, transparent calc(var(--ear) - 0.5px), var(--nbg) var(--ear)); }
-.notch[data-mode="expanded"], .notch[data-mode="notification"], .notch[data-mode="alert"] { box-shadow: 0 14px 40px rgba(0, 0, 0, 0.42); }
+.notch[data-mode="expanded"], .notch[data-mode="notification"], .notch[data-mode="alert"] { box-shadow: 0 14px 40px rgba(0, 0, 0, 0.42), inset 0 -1px 0 var(--notch-border, transparent); }
+.notch { box-shadow: inset 0 -1px 0 var(--notch-border, transparent); }
 .notch-clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
 .notch-content { position: absolute; inset: 0; display: flex; align-items: center; animation: nIn 180ms var(--ease) both; }
 @keyframes nIn { from { opacity: 0; filter: blur(2px); } }

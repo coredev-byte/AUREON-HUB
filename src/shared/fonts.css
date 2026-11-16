@@ -1,0 +1,8 @@
+/* fontes que vêm com o app (sem internet): só carregam quando usadas */
+@import "@fontsource-variable/outfit";
+@import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource-variable/orbitron";
+@import "@fontsource-variable/playfair-display";
+@import "@fontsource/vt323";
+@import "@fontsource/share-tech-mono";
+@import "@fontsource/major-mono-display";

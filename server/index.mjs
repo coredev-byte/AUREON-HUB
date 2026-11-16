@@ -4,8 +4,9 @@ import http from "node:http"
 import { randomBytes } from "node:crypto"
 import { WebSocketServer } from "ws"
 import { Hub } from "./hub.mjs"
+import { createTurnCache, providerFromEnv } from "./turn-providers.mjs"
 
-export const VERSION = "1.0.0"
+export const VERSION = "1.1.0"
 const list = (v) => String(v || "").split(",").map((s) => s.trim()).filter(Boolean)
 
 export function configFromEnv(env = process.env) {
@@ -25,18 +26,22 @@ export function configFromEnv(env = process.env) {
       turnPass: env.TURN_CREDENTIAL || "",
       turnTtlS: Number(env.TURN_TTL_S) || 6 * 3600,
     },
+    turnProvider: providerFromEnv(env),
   }
 }
 
 export function startServer(cfg = configFromEnv()) {
   const hubOpts = Object.fromEntries(Object.entries(cfg.hub).filter(([, v]) => v !== undefined))
+  const turn = cfg.turnProvider ? createTurnCache(cfg.turnProvider) : null
+  if (turn) { void turn.refresh(); hubOpts.extraIce = turn.get }
   const hub = new Hub(hubOpts)
   const perIp = new Map()
 
   const server = http.createServer((req, res) => {
     if (req.url === "/health" || req.url === "/") {
       res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store", "access-control-allow-origin": "*" })
-      return res.end(JSON.stringify({ service: "aureon-signal", version: VERSION, turn: cfg.hub.turnUrls.length > 0, ...hub.stats() }))
+      const turnInfo = turn ? turn.status() : { provider: cfg.hub.turnUrls.length ? "coturn" : "", ok: cfg.hub.turnUrls.length > 0, error: "" }
+      return res.end(JSON.stringify({ service: "aureon-signal", version: VERSION, turn: turnInfo.ok, turnProvider: turnInfo.provider, turnError: turnInfo.error || undefined, ...hub.stats() }))
     }
     res.writeHead(404).end()
   })
@@ -78,7 +83,8 @@ export function startServer(cfg = configFromEnv()) {
         port: typeof addr === "object" ? addr.port : cfg.port, hub,
         /** só para testes: derruba todas as conexões (simula queda de rede) */
         dropAll: () => { for (const c of wss.clients) c.terminate() },
-        close: () => new Promise((r) => { hub.close(); for (const c of wss.clients) c.terminate(); wss.close(); server.close(() => r()) }),
+        turn,
+        close: () => new Promise((r) => { turn?.stop(); hub.close(); for (const c of wss.clients) c.terminate(); wss.close(); server.close(() => r()) }),
       })
     })
   })
@@ -87,7 +93,7 @@ export function startServer(cfg = configFromEnv()) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const cfg = configFromEnv()
   startServer(cfg).then(({ port }) => {
-    console.log(`aureon-signal ${VERSION} ouvindo na porta ${port} (TURN: ${cfg.hub.turnUrls.length ? "sim" : "não"})`)
+    console.log(`aureon-signal ${VERSION} ouvindo na porta ${port} (TURN: ${cfg.turnProvider ? cfg.turnProvider.name : cfg.hub.turnUrls.length ? "coturn" : "não"})`)
   })
   for (const s of ["SIGINT", "SIGTERM"]) process.on(s, () => process.exit(0))
 }

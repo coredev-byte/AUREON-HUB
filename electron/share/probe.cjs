@@ -35,7 +35,7 @@ async function probeSignal(fetchImpl, signalUrl, timeoutMs = 8000) {
     const j = await r.json().catch(() => null)
     if (!j || j.service !== "aureon-signal") return { ok: false, kind: "wrong", error: "Não é um servidor Aureon", ms }
     const date = r.headers.get("date")
-    return { ok: true, ms, version: j.version, turn: !!j.turn, rooms: j.rooms, clockSkewMs: date ? Date.now() - Date.parse(date) : null }
+    return { ok: true, ms, version: j.version, turn: !!j.turn, turnProvider: String(j.turnProvider || ""), turnError: String(j.turnError || "").slice(0, 160), rooms: j.rooms, clockSkewMs: date ? Date.now() - Date.parse(date) : null }
   } catch (e) {
     const error = String(e?.message || e).slice(0, 160)
     return { ok: false, kind: errorKind(error), error, ms: Date.now() - t0 }

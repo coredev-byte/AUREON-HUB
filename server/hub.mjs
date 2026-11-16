@@ -66,6 +66,8 @@ export class Hub {
       if (this.o.turnSecret) servers.push({ urls: this.o.turnUrls, ...turnCredentials(this.o.turnSecret, peer, this.o.turnTtlS, this.now()) })
       else if (this.o.turnUser) servers.push({ urls: this.o.turnUrls, username: this.o.turnUser, credential: this.o.turnPass })
     }
+    // TURN de serviço (Cloudflare/Metered): credenciais temporárias já buscadas pelo servidor
+    if (typeof this.o.extraIce === "function") servers.push(...this.o.extraIce())
     return servers
   }
   stats() { return { rooms: this.rooms.size, clients: this.clients.size } }

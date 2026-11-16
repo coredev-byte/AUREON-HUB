@@ -6,7 +6,7 @@ import {
 import { invoke, on } from "@/shared/bridge"
 import { appLabel, fmtTime, mediaCommand, useMedia, useMediaPosition, useNotices, useNow, useSharePublic, useWeather } from "@/shared/hooks"
 import { patch, useSection } from "@/shared/state"
-import { useTheme } from "@/shared/theme"
+import { fmtClock, useTheme } from "@/shared/theme"
 import type { MediaSession, Notice, SharePublic, Weather, WeatherKind } from "@/shared/types"
 import { initial, reduce, sizeOf, type Mode, type NotchState, type Tab } from "./machine"
 
@@ -106,10 +106,11 @@ function Content({ s, dispatch, share, media, idleClock, widgetsOn }: { s: Notch
 
 function IdleCompact({ clock, hover }: { clock: boolean; hover: boolean }) {
   const now = useNow(clock ? 60000 : 0)
+  const hour12 = !!useSection("settings")?.hour12
   if (!clock) return null
   return (
     <>
-      <span className="n-clock">{now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+      <span className="n-clock">{fmtClock(now, hour12)}</span>
       {hover && <span style={{ color: "#8f8e95", fontSize: 11.5 }}>{now.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric" }).replace(".", "")}</span>}
     </>
   )
@@ -209,12 +210,13 @@ export function WeatherIcon({ w, size = 20 }: { w: Pick<Weather, "kind" | "isDay
 
 function NowTab({ media }: { media: MediaSession | null }) {
   const now = useNow(1000)
+  const hour12 = !!useSection("settings")?.hour12
   const w = useWeather()
   const ok = w && !("error" in w && !("temp" in w)) ? (w as Weather) : null
   return (
     <div style={{ display: "grid", gridTemplateColumns: "190px 200px 1fr", gap: 10, height: "100%" }}>
       <div className="n-card col" style={{ justifyContent: "center", gap: 2 }}>
-        <div className="num" style={{ fontSize: 46, fontWeight: 500, lineHeight: 1, letterSpacing: "-0.03em" }}>{now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
+        <div className="num" style={{ fontSize: 46, fontWeight: 500, lineHeight: 1, letterSpacing: "-0.03em" }}>{fmtClock(now, hour12)}</div>
         <div style={{ color: "#8f8e95", fontSize: 12 }}>{cap(now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }))}</div>
       </div>
       <div className="n-card col" style={{ justifyContent: "center", gap: 6 }}>

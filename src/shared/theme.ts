@@ -1,6 +1,7 @@
 // Identidade Carbono: preto profundo e grafite, texto neutro, uma cor de destaque usada com parcimônia.
+// Tudo o que é personalizável vira variável CSS aqui (app, notch e widgets leem as mesmas).
 import { useEffect } from "react"
-import type { Settings } from "./types"
+import type { NumFont, Settings, UiFont } from "./types"
 
 const hex = (c: string) => (/^#?[0-9a-f]{6}$/i.test(c) ? c.replace("#", "") : "0e0e10")
 export function luminance(c: string) {
@@ -17,19 +18,57 @@ export function surfaceVars(bg: string) {
 /** texto legível sobre a cor de destaque */
 export const onAccent = (accent: string) => (luminance(accent) > 0.45 ? "#0b0b0c" : "#ffffff")
 
-export function applyTheme(s: Pick<Settings, "accent" | "surface" | "font" | "radius" | "reduceMotion">, root = document.documentElement) {
+export const UI_FONTS: Record<UiFont, { label: string; family: string }> = {
+  inter: { label: "Inter", family: "'Inter Variable', system-ui, sans-serif" },
+  grotesk: { label: "Space Grotesk", family: "'Space Grotesk Variable', 'Inter Variable', sans-serif" },
+  outfit: { label: "Outfit", family: "'Outfit Variable', 'Inter Variable', sans-serif" },
+  jetbrains: { label: "JetBrains Mono", family: "'JetBrains Mono Variable', ui-monospace, monospace" },
+  orbitron: { label: "Orbitron", family: "'Orbitron Variable', 'Inter Variable', sans-serif" },
+  playfair: { label: "Playfair Display", family: "'Playfair Display Variable', Georgia, serif" },
+}
+export const NUM_FONTS: Record<NumFont, { label: string; family: string }> = {
+  grotesk: { label: "Space Grotesk", family: "'Space Grotesk Variable', 'Inter Variable', sans-serif" },
+  inter: { label: "Inter", family: "'Inter Variable', system-ui, sans-serif" },
+  outfit: { label: "Outfit", family: "'Outfit Variable', sans-serif" },
+  jetbrains: { label: "JetBrains Mono", family: "'JetBrains Mono Variable', ui-monospace, monospace" },
+  orbitron: { label: "Orbitron", family: "'Orbitron Variable', sans-serif" },
+  vt323: { label: "VT323 (retrô)", family: "'VT323', monospace" },
+  sharetech: { label: "Share Tech Mono", family: "'Share Tech Mono', monospace" },
+  majormono: { label: "Major Mono", family: "'Major Mono Display', monospace" },
+}
+const SHADOW = { none: "none", soft: "0 8px 24px rgba(0,0,0,.28)", strong: "0 16px 44px rgba(0,0,0,.5)" }
+const NOTCH = { black: "#050506", graphite: "#16161a" }
+
+type ThemeInput = Pick<Settings, "accent" | "surface" | "font" | "radius" | "reduceMotion"> & Partial<Settings>
+export function applyTheme(s: ThemeInput, root = document.documentElement) {
+  const speed = s.animSpeed ?? 1
   const vars: Record<string, string> = {
     ...surfaceVars(s.surface),
     "--accent": s.accent,
     "--on-accent": onAccent(s.accent),
     "--accent-soft": `color-mix(in srgb, ${s.accent} 16%, transparent)`,
     "--radius": s.radius + "px",
-    "--font-ui": s.font === "grotesk" ? "'Space Grotesk Variable', 'Inter Variable', system-ui, sans-serif" : "'Inter Variable', system-ui, sans-serif",
+    "--font-ui": (UI_FONTS[s.font as UiFont] ?? UI_FONTS.inter).family,
+    "--font-num": (NUM_FONTS[(s.numFont ?? "grotesk") as NumFont] ?? NUM_FONTS.grotesk).family,
+    "--t-fast": Math.round(120 * speed) + "ms",
+    "--t": Math.round(200 * speed) + "ms",
+    "--t-slow": Math.round(320 * speed) + "ms",
+    "--wg-alpha": Math.round((s.widgetBg ?? 0.88) * 100) + "%",
+    "--wg-blur": (s.widgetBlur ?? 14) + "px",
+    "--wg-border": s.widgetBorder === false ? "transparent" : "var(--line)",
+    "--wg-shadow": SHADOW[s.widgetShadow ?? "soft"],
+    "--wg-radius": (s.widgetRadius ?? 14) + "px",
+    "--notch-bg": s.notchColor === "surface" ? "var(--bg)" : NOTCH[s.notchColor === "graphite" ? "graphite" : "black"],
+    "--notch-border": s.notchBorder ? "rgba(255,255,255,.09)" : "transparent",
   }
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v)
   root.dataset.motion = s.reduceMotion ? "reduce" : "full"
 }
 
 export function useTheme(s: Settings | null) {
-  useEffect(() => { if (s) applyTheme(s) }, [s?.accent, s?.surface, s?.font, s?.radius, s?.reduceMotion])
+  const key = s ? JSON.stringify([s.accent, s.surface, s.font, s.numFont, s.radius, s.reduceMotion, s.animSpeed, s.widgetBg, s.widgetBlur, s.widgetBorder, s.widgetShadow, s.widgetRadius, s.notchColor, s.notchBorder]) : ""
+  useEffect(() => { if (s) applyTheme(s) }, [key])
 }
+
+/** hora no formato escolhido (24 h ou 12 h) */
+export const fmtClock = (d: Date, hour12 = false) => d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12 })

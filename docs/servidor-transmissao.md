@@ -21,6 +21,8 @@ Quem transmite e quem assiste precisam configurar o **mesmo** endereço em *Tran
 | `TURN_URLS` | (vazio) | Ex.: `turn:turn.seudominio.com:3478,turns:turn.seudominio.com:443?transport=tcp`. |
 | `TURN_SECRET` | (vazio) | O mesmo `static-auth-secret` do coturn. Gera credenciais temporárias por pessoa. |
 | `TURN_TTL_S` | 21600 | Validade das credenciais TURN (segundos). |
+| `CF_TURN_KEY_ID` / `CF_TURN_API_TOKEN` | (vazio) | TURN da Cloudflare (gratuito): o servidor gera credenciais temporárias. |
+| `METERED_APP` / `METERED_API_KEY` | (vazio) | TURN da Metered. |
 | `TURN_USERNAME` / `TURN_CREDENTIAL` | (vazio) | Alternativa para TURN com usuário fixo (ex.: Metered, Cloudflare). Menos seguro que `TURN_SECRET`. |
 
 ## Publicar a sinalização
@@ -46,6 +48,22 @@ docker build -t aureon-signal .
 docker run -d --restart=always -p 8787:8787 -e TRUST_PROXY=1 -e TURN_URLS=... -e TURN_SECRET=... aureon-signal
 ```
 Coloque na frente um proxy com HTTPS (Caddy: `sinal.seudominio.com { reverse_proxy localhost:8787 }`). O app só aceita `wss://` fora do localhost.
+
+## TURN pronto e gratuito: Cloudflare (recomendado, 5 minutos)
+
+Não precisa de VPS. O servidor de sinalização pede à Cloudflare credenciais **temporárias** e repassa para os apps. A chave fica só no servidor.
+
+1. Entre em https://dash.cloudflare.com (conta gratuita) e abra **Realtime › TURN Server** (o link do painel é `https://dash.cloudflare.com/?to=/:account/calls`).
+2. Clique em **Create** para criar uma chave TURN. Copie o **TURN Token ID** e o **API Token**: o token aparece uma vez só.
+3. No Render, abra o serviço `aureon-signal` › **Environment** › **Add Environment Variable**:
+   - `CF_TURN_KEY_ID` = o TURN Token ID
+   - `CF_TURN_API_TOKEN` = o API Token
+4. Salve. O Render reinicia o serviço sozinho.
+5. Confira em `https://<seu-servidor>.onrender.com/health`: deve aparecer `"turn":true,"turnProvider":"cloudflare"`. No app, use **Transmissão › Servidor e conexão › Testar**: a linha "Retransmissão (TURN)" fica verde.
+
+Alternativa: Metered (https://www.metered.ca), com `METERED_APP` (o nome antes de `.metered.live`) e `METERED_API_KEY`.
+
+> O servidor precisa estar na versão 1.1.0 ou mais nova (a pasta `server/` desta versão). Se o Render publica a partir do seu repositório, basta enviar o código novo.
 
 ## TURN (coturn)
 

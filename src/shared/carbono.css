@@ -2,6 +2,7 @@
    Preto profundo, grafite, texto neutro, uma cor de destaque. Sem gradientes decorativos, sem brilho. */
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/space-grotesk";
+@import "./fonts.css";
 
 :root {
   --bg: #0e0e10; --s1: #19191b; --s2: #222224; --s3: #2c2c2f; --s4: #37373a;

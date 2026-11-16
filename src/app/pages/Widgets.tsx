@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { ChevronDown, Copy, LayoutGrid, Lock, LockOpen, Pencil, Plus, Trash2 } from "lucide-react"
 import { invoke } from "@/shared/bridge"
 import { patch, useSection } from "@/shared/state"
@@ -95,9 +95,18 @@ function Row({ w, open, onToggle, displays }: { w: WidgetInstance; open: boolean
             <Setting key={f.key} title={f.label}>
               {f.kind === "toggle"
                 ? <Switch label={f.label} checked={(w.config[f.key] as boolean) ?? f.default} onChange={(v) => updateWidget(w.id, { config: { [f.key]: v } })} />
-                : <select className="field" aria-label={f.label} value={(w.config[f.key] as string) ?? f.default} onChange={(e) => updateWidget(w.id, { config: { [f.key]: e.target.value } })}>{f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>}
+                : f.kind === "text"
+                  ? <input className="field" style={{ width: 260 }} aria-label={f.label} placeholder={f.placeholder} defaultValue={(w.config[f.key] as string) ?? f.default} onBlur={(e) => updateWidget(w.id, { config: { [f.key]: e.target.value.trim().slice(0, 80) } })} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur() }} />
+                  : <select className="field" aria-label={f.label} value={(w.config[f.key] as string) ?? f.default} onChange={(e) => updateWidget(w.id, { config: { [f.key]: e.target.value } })}>{f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>}
             </Setting>
           ))}
+          {def.Settings && (
+            <div className="widgy-settings" style={{ margin: "8px 0 12px" }}>
+              <Suspense fallback={<div className="small muted">Carregando opções…</div>}>
+                <def.Settings w={w} set={(p) => updateWidget(w.id, { config: p })} />
+              </Suspense>
+            </div>
+          )}
           {displays.length > 1 && (
             <Setting title="Monitor">
               <select className="field" aria-label="Monitor" value={w.display} onChange={(e) => updateWidget(w.id, { display: e.target.value, x: 48, y: 48 })}>

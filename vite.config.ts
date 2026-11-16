@@ -1,5 +1,6 @@
 import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
+import tailwindcss from "@tailwindcss/vite"
 import path from "node:path"
 import type { Plugin } from "vite"
 
@@ -13,7 +14,7 @@ const devCsp = (): Plugin => ({
 // três páginas: app principal, notch (uma janela por monitor) e camada de widgets (uma por monitor)
 export default defineConfig({
   base: "./",
-  plugins: [react(), devCsp()],
+  plugins: [react(), tailwindcss(), devCsp()],
   resolve: { alias: { "@": path.resolve(__dirname, "src") } },
   server: { port: 5173, strictPort: true },
   build: {

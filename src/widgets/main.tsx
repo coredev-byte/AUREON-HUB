@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client"
 import "@/shared/carbono.css"
+import "@/shared/tw.css"
 import "./widgets.css"
 import { startState } from "@/shared/state"
 import { Layer } from "./Layer"

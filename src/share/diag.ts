@@ -39,7 +39,7 @@ export async function diagnose(url: string): Promise<DiagResult> {
   if (!url) return { steps, verdict: { level: "bad", title: "Nenhum servidor de transmissão configurado.", fixes: ["Cole o endereço wss:// do seu servidor (veja docs/servidor-transmissao.md)."] } }
 
   const probe = await invoke("share:probe", url)
-  add({ id: "http", label: "Servidor responde", ok: !!probe.ok, detail: probe.ok ? `${probe.ms} ms · versão ${probe.version}${probe.turn ? " · com TURN" : " · sem TURN"}` : KIND[probe.kind] ?? probe.error })
+  add({ id: "http", label: "Servidor responde", ok: !!probe.ok, detail: probe.ok ? `${probe.ms} ms · versão ${probe.version}${probe.turn ? ` · com TURN${probe.turnProvider ? " (" + probe.turnProvider + ")" : ""}` : probe.turnError ? ` · TURN com erro: ${probe.turnError}` : " · sem TURN"}` : KIND[probe.kind] ?? probe.error })
   if (probe.ok && probe.clockSkewMs != null && Math.abs(probe.clockSkewMs) > 5 * 60e3) fixes.push("O relógio do PC está errado: ative \"Definir hora automaticamente\" no Windows.")
   if (!probe.ok) {
     if (probe.kind === "cert" || probe.kind === "reset") fixes.push("Libere o Aureon Hub no antivírus/firewall ou desligue a verificação de HTTPS.")
@@ -72,7 +72,7 @@ export async function diagnose(url: string): Promise<DiagResult> {
   add({ id: "turn", label: "Retransmissão (TURN)", ok: relay ? relay.has("relay") : null, detail: relay == null ? "o servidor não tem TURN configurado" : relay.has("relay") ? "respondeu" : "não respondeu" })
 
   if (!direct.has("srflx") && !relay?.has("relay")) return { steps, verdict: { level: "bad", title: "Dá para criar salas, mas o vídeo não vai passar nesta rede.", fixes: ["Configure um servidor TURN (docs/servidor-transmissao.md) — de preferência na porta 443/TCP.", "Libere o Aureon Hub no Firewall do Windows (redes privadas e públicas)."] } }
-  if (relay == null) return { steps, verdict: { level: "warn", title: "Funciona em redes comuns. Sem TURN, redes muito fechadas (empresa, CGNAT rígido) podem falhar.", fixes: ["Para funcionar em qualquer rede, configure TURN no servidor."] } }
+  if (relay == null) return { steps, verdict: { level: "warn", title: "Funciona em redes comuns. Sem TURN, redes muito fechadas (empresa, CGNAT rígido) podem falhar.", fixes: [probe.turnError ? "O TURN do servidor deu erro: " + probe.turnError + " (confira as chaves no Render)." : "Para funcionar em qualquer rede, configure TURN no servidor: no Render, adicione CF_TURN_KEY_ID e CF_TURN_API_TOKEN (Cloudflare, gratuito). Passo a passo em docs/servidor-transmissao.md."] } }
   if (relay && !relay.has("relay")) return { steps, verdict: { level: "warn", title: "O TURN do servidor não respondeu: só conexões diretas vão funcionar.", fixes: ["Confira TURN_URLS e TURN_SECRET no servidor e as portas do coturn."] } }
   return { steps, verdict: { level: "ok", title: "Tudo certo: servidor, conexão em tempo real, conexão direta e retransmissão.", fixes } }
 }

@@ -2,9 +2,9 @@
 .layer-editing { background: rgba(5, 5, 6, 0.28); background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px); background-size: 16px 16px; }
 .edit-bar { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 12px; background: var(--s1); border: 1px solid var(--line-2); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); font-size: 12px; color: var(--muted); }
 .wg {
-  position: absolute; border-radius: var(--radius); background: color-mix(in srgb, var(--bg) 88%, transparent); border: 1px solid var(--line);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28); overflow: hidden; contain: layout paint;
-  backdrop-filter: blur(14px) saturate(1.1);
+  position: absolute; border-radius: var(--wg-radius, var(--radius)); background: color-mix(in srgb, var(--bg) var(--wg-alpha, 88%), transparent);
+  border: 1px solid var(--wg-border, var(--line)); box-shadow: var(--wg-shadow, 0 8px 24px rgba(0, 0, 0, 0.28)); overflow: hidden; contain: layout paint;
+  backdrop-filter: blur(var(--wg-blur, 14px)) saturate(1.1);
 }
 .wg.font-grotesk { font-family: var(--font-num); }
 .wg.font-mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
@@ -33,3 +33,6 @@
 .wg-ctrl:active { transform: scale(0.92); }
 .wg-ctrl.play { background: var(--fg); color: var(--bg); width: 34px; height: 34px; }
 .wg-ctrl:disabled { opacity: 0.35; }
+/* widgets que desenham o próprio fundo (portados do Widgy: clima, time, agente do Valorant) */
+.wg-bare { background: transparent; border-color: transparent; backdrop-filter: none; box-shadow: none; }
+.wg-bare.wg-edit { background: transparent; }

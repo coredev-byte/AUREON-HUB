@@ -10,8 +10,24 @@ const DEFAULTS = {
     accent: ACCENT,
     surface: "#0E0E10",
     font: "inter",
+    /** fonte dos números (relógios, placares) */
+    numFont: "grotesk",
     radius: 14,
     reduceMotion: false,
+    /** velocidade das animações: 0,6 (rápidas) a 1,6 (calmas) */
+    animSpeed: 1,
+    /** tamanho do texto da janela principal (0,9 a 1,15) */
+    textScale: 1,
+    hour12: false,
+    /** visual padrão dos widgets */
+    widgetBg: 0.88,
+    widgetBlur: 14,
+    widgetBorder: true,
+    widgetShadow: "soft",
+    widgetRadius: 14,
+    /** cor do notch: "black" (some na moldura do monitor), "graphite" ou "surface" (a do tema) */
+    notchColor: "black",
+    notchBorder: false,
     launchAtLogin: false,
     /** servidor de sinalização da transmissão (wss://...) */
     signalUrl: "",
@@ -63,14 +79,14 @@ const isHex = (s) => typeof s === "string" && /^#[0-9a-f]{6}$/i.test(s)
 const clamp = (n, a, b, d) => (Number.isFinite(n) ? Math.min(b, Math.max(a, n)) : d)
 const str = (s, max, d = "") => (typeof s === "string" ? s.slice(0, max) : d)
 
-const WIDGET_TYPES = ["clock", "weather", "media", "system", "games", "pet", "note"]
+const WIDGET_TYPES = ["clock", "weather", "media", "system", "games", "pet", "note", "cs2", "valorant", "football", "team", "valagent"]
 
 function sanitizeWidget(w) {
   if (!w || typeof w !== "object" || !WIDGET_TYPES.includes(w.type)) return null
   const id = str(w.id, 40)
   if (!/^[a-z0-9-]{4,40}$/i.test(id)) return null
   const config = w.config && typeof w.config === "object" ? JSON.parse(JSON.stringify(w.config)) : {}
-  if (JSON.stringify(config).length > 8000) return null
+  if (JSON.stringify(config).length > 20000) return null
   return {
     id,
     type: w.type,
@@ -113,7 +129,17 @@ function sanitize(section, v) {
   if (section === "settings") {
     if (!isHex(out.accent)) out.accent = d.accent
     if (!isHex(out.surface)) out.surface = d.surface
-    if (!["inter", "grotesk"].includes(out.font)) out.font = d.font
+    const FONTS = ["inter", "grotesk", "outfit", "jetbrains", "orbitron", "playfair"]
+    const NUMS = ["grotesk", "inter", "outfit", "jetbrains", "orbitron", "vt323", "sharetech", "majormono"]
+    if (!FONTS.includes(out.font)) out.font = d.font
+    if (!NUMS.includes(out.numFont)) out.numFont = d.numFont
+    out.animSpeed = clamp(out.animSpeed, 0.6, 1.6, 1)
+    out.textScale = clamp(out.textScale, 0.9, 1.15, 1)
+    out.widgetBg = clamp(out.widgetBg, 0.2, 1, 0.88)
+    out.widgetBlur = clamp(out.widgetBlur, 0, 30, 14)
+    out.widgetRadius = clamp(out.widgetRadius, 4, 28, 14)
+    if (!["none", "soft", "strong"].includes(out.widgetShadow)) out.widgetShadow = "soft"
+    if (!["black", "graphite", "surface"].includes(out.notchColor)) out.notchColor = "black"
     out.radius = clamp(out.radius, 6, 22, d.radius)
     out.units = out.units === "f" ? "f" : "c"
     if (out.signalUrl && !/^wss?:\/\/[^\s]+$/i.test(out.signalUrl)) out.signalUrl = ""

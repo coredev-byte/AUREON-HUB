@@ -35,6 +35,7 @@ export function App() {
   const share = useSharePublic()
   const [max, setMax] = useState(false)
   useEffect(() => on("win:maximized", (v: boolean) => setMax(!!v)), [])
+  useEffect(() => { document.body.style.zoom = String(settings?.textScale ?? 1) }, [settings?.textScale])
   if (!settings) return null
   const Page = PAGES[page]
   const item = (n: { id: Page; label: string; icon: typeof Home }) => (

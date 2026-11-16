@@ -1,8 +1,13 @@
 // Tipos do estado salvo (espelham electron/core/defaults.cjs) e dos eventos do processo principal.
 
 export interface City { name: string; lat: number; lon: number }
+export type UiFont = "inter" | "grotesk" | "outfit" | "jetbrains" | "orbitron" | "playfair"
+export type NumFont = "grotesk" | "inter" | "outfit" | "jetbrains" | "orbitron" | "vt323" | "sharetech" | "majormono"
 export interface Settings {
-  accent: string; surface: string; font: "inter" | "grotesk"; radius: number; reduceMotion: boolean
+  accent: string; surface: string; font: UiFont; numFont: NumFont; radius: number; reduceMotion: boolean
+  animSpeed: number; textScale: number; hour12: boolean
+  widgetBg: number; widgetBlur: number; widgetBorder: boolean; widgetShadow: "none" | "soft" | "strong"; widgetRadius: number
+  notchColor: "black" | "graphite" | "surface"; notchBorder: boolean
   launchAtLogin: boolean; signalUrl: string; city: City | null; units: "c" | "f"
   hotkey: string; hotkeyOn: boolean; onboarded: boolean
   autoCheck: boolean; autoUpdate: boolean
@@ -12,7 +17,7 @@ export interface NotchSettings {
   scale: number; showMedia: boolean; mediaSource: string; notifications: boolean; fullscreenIndicator: boolean
 }
 export interface WidgetsSettings { enabled: boolean; activeProfile: string; hideFullscreen: boolean; editMode: boolean }
-export type WidgetType = "clock" | "weather" | "media" | "system" | "games" | "pet" | "note"
+export type WidgetType = "clock" | "weather" | "media" | "system" | "games" | "pet" | "note" | "cs2" | "valorant" | "football" | "team" | "valagent"
 export interface WidgetInstance {
   id: string; type: WidgetType; display: string
   x: number; y: number; w: number; h: number

@@ -2,7 +2,7 @@ FROM node:22-alpine
 WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev && npm cache clean --force
-COPY hub.mjs index.mjs ./
+COPY hub.mjs index.mjs turn-providers.mjs ./
 ENV PORT=8787 TRUST_PROXY=1
 EXPOSE 8787
 USER node

@@ -22,11 +22,30 @@ public static class AureonFs {
   [DllImport("shell32.dll")] static extern int SHQueryUserNotificationState(out int s);
   [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr h, int a, out int v, int s);
   [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint f);
-  // só mexe em janelas do PRÓPRIO Aureon: manda para o fundo da pilha, sem ativar, mover ou redimensionar
-  public static bool Bottom(long handle, int ownPid) {
-    IntPtr h = new IntPtr(handle); uint pid; GetWindowThreadProcessId(h, out pid);
+  [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr h, uint cmd);
+  [DllImport("user32.dll")] static extern IntPtr GetTopWindow(IntPtr h);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string title);
+  static string ClassOf(IntPtr h) { var sb = new StringBuilder(64); GetClassName(h, sb, 64); return sb.ToString(); }
+  /** janela da área de trabalho (ícones/papel de parede) mais alta na pilha: Progman, ou WorkerW com os ícones */
+  public static IntPtr Desktop() {
+    for (IntPtr h = GetTopWindow(IntPtr.Zero); h != IntPtr.Zero; h = GetWindow(h, 2)) {
+      string c = ClassOf(h);
+      if (c == "Progman") return h;
+      if (c == "WorkerW" && FindWindowEx(h, IntPtr.Zero, "SHELLDLL_DefView", null) != IntPtr.Zero) return h;
+    }
+    return IntPtr.Zero;
+  }
+  // Só mexe em janelas do PRÓPRIO Aureon: coloca a janela logo ACIMA da área de trabalho (na frente do papel de
+  // parede, inclusive Wallpaper Engine, e atrás das janelas comuns). Não altera, move nem reparenta o Explorer.
+  // (HWND_BOTTOM não serve: o fundo da pilha fica atrás da própria área de trabalho e os widgets somem.)
+  public static bool AboveDesktop(long handle, int ownPid) {
+    IntPtr me = new IntPtr(handle); uint pid; GetWindowThreadProcessId(me, out pid);
     if (pid != (uint)ownPid) return false;
-    return SetWindowPos(h, new IntPtr(1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
+    IntPtr desk = Desktop();
+    if (desk == IntPtr.Zero) return false;
+    IntPtr prev = GetWindow(desk, 3);
+    if (prev == me || prev == IntPtr.Zero) return true;
+    return SetWindowPos(me, prev, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
   }
   static string Esc(string s) { return (s ?? "").Replace("\\", "\\\\").Replace("\"", "\\\""); }
   public static bool Alive(int pid) { try { return !Process.GetProcessById(pid).HasExited; } catch { return false; } }
@@ -68,7 +87,7 @@ while ($true) {
     if (-not $pending.IsCompleted) { break }
     $line = $pending.Result; $pending = $null
     if ($null -eq $line) { exit 0 }
-    if ($line -match '^bottom (\\d{1,20})$') { $null = [AureonFs]::Bottom([long]$Matches[1], ${ownPid}) }
+    if ($line -match '^desk (\\d{1,20})$') { $null = [AureonFs]::AboveDesktop([long]$Matches[1], ${ownPid}) }
   }
   try { $j = [AureonFs]::Probe(${ownPid}) } catch { $j = '{"fs":false,"quns":0,"exe":"","x":0,"y":0,"w":0,"h":0}' }
   if ($j -ne $last) { $j; $last = $j }
@@ -135,8 +154,8 @@ function createMonitor({ onChange, screen }) {
     start,
     stop() { stopped = true; clearTimeout(retry); try { proc?.kill() } catch {} proc = null },
     get: () => state,
-    /** manda uma janela do próprio app para o fundo (widgets) */
-    toBottom(hwnd) { if (proc && /^\d{1,20}$/.test(hwnd)) try { proc.stdin.write("bottom " + hwnd + "\n") } catch {} },
+    /** coloca uma janela do próprio app logo acima da área de trabalho (camada de widgets) */
+    toDesktop(hwnd) { if (proc && /^\d{1,20}$/.test(hwnd)) try { proc.stdin.write("desk " + hwnd + "\n") } catch {} },
   }
 }
 

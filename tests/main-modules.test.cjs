@@ -50,7 +50,9 @@ test("tela cheia: linha do helper e monitor certo", () => {
   assert.equal(parseLine("lixo"), null)
   // o helper só mexe em janelas do próprio processo
   assert.match(CS, /pid != \(uint\)ownPid\) return false/)
-  assert.match(PS(42), /\^bottom \(\\d\{1,20\}\)\$/)
+  assert.match(CS, /AboveDesktop/)
+  assert.doesNotMatch(CS, /new IntPtr\(1\)/, "nada de HWND_BOTTOM (some atrás do papel de parede)")
+  assert.match(PS(42), /\^desk \(\\d\{1,20\}\)\$/)
 })
 test("clima: resposta da Open-Meteo vira estados diferentes por condição", () => {
   const j = { current: { temperature_2m: 21.4, apparent_temperature: 22, relative_humidity_2m: 70, wind_speed_10m: 9, weather_code: 63, is_day: 1 }, daily: { time: ["2026-11-15"], weather_code: [95], temperature_2m_max: [25], temperature_2m_min: [18], precipitation_probability_max: [80] } }
