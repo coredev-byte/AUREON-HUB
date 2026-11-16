@@ -64,7 +64,7 @@ jobs:
           $latest = (Resolve-Path 'release/latest.yml').Path
           gh release view $tag --repo "$env:GITHUB_REPOSITORY" *> $null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --target "$env:GITHUB_SHA" --title "Aureon Hub $version (Windows)" --notes "Versão 0.1.2: correção dos cliques do Notch e atualizador integrado. Transmissão requer servidor próprio. Instalador sem assinatura." --repo "$env:GITHUB_REPOSITORY"
+            gh release create $tag --target "$env:GITHUB_SHA" --title "Aureon Hub $version (Windows)" --notes "Aureon Hub $version. Novidades e testes em docs/relatorio.md. A transmissão usa o seu servidor (docs/servidor-transmissao.md). Instalador sem assinatura digital." --repo "$env:GITHUB_REPOSITORY"
             if ($LASTEXITCODE -ne 0) { throw "Falha ao criar release $tag" }
           }
           gh release upload $tag $exe.FullName $zip $latest --clobber --repo "$env:GITHUB_REPOSITORY"
