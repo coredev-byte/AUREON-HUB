@@ -1,7 +1,7 @@
 {
   "name": "aureon-hub",
   "productName": "Aureon Hub",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Aureon Hub — widgets, notch e transmissão de tela",
   "main": "electron/main.cjs",
   "type": "module",
