@@ -63,9 +63,15 @@ export function Layer() {
 
   useEffect(() => {
     if (!editing) return
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape" || e.key === "Enter") void patch("widgets", { editMode: false }) }
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") void invoke("widgets:drag-cancel")
+      if (e.key === "Escape" || e.key === "Enter") void patch("widgets", { editMode: false })
+    }
+    // Quando o mouse passa para outra janela/monitor, a janela de destino pode receber o mouseup.
+    const end = () => { void invoke("widgets:drag-end") }
+    window.addEventListener("pointerup", end)
     window.addEventListener("keydown", key)
-    return () => window.removeEventListener("keydown", key)
+    return () => { window.removeEventListener("keydown", key); window.removeEventListener("pointerup", end) }
   }, [editing])
 
   if (!ws || !profiles || !settings) return null
@@ -86,11 +92,12 @@ export function Layer() {
       {editing && (
         <div className="edit-bar">
           <GripVertical size={14} />
-          <span>Arraste para mover, puxe o canto para redimensionar.</span>
+          <span>Arraste inclusive para outro monitor; puxe o canto para redimensionar.</span>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => void patch("widgets", { editMode: false })}><Check size={13} />Concluir</button>
         </div>
       )}
       {mine.map((w) => <Frame key={w.id} w={w} editing={editing} paused={paused || reduce} area={area} glass={glass} />)}
+      {editing && <TransferGhost display={DISPLAY} />}
     </div>
   )
 }
@@ -103,6 +110,25 @@ function useArea() {
     return () => removeEventListener("resize", r)
   }, [])
   return a
+}
+
+interface DragPreview {
+  id: string; type: keyof typeof CATALOG; source: string; target: string
+  rect: { x: number; y: number; w: number; h: number }
+}
+
+/** Preview mínimo no monitor de destino: o conteúdo pesado do widget não é montado duas vezes. */
+function TransferGhost({ display }: { display: string }) {
+  const [preview, setPreview] = useState<DragPreview | null>(null)
+  useEffect(() => on("widgets:drag-preview", (v: DragPreview | null) => {
+    setPreview(v && v.target === display && v.source !== display ? v : null)
+  }), [display])
+  if (!preview) return null
+  return <div className="wg-transfer-preview" style={{
+    left: preview.rect.x, top: preview.rect.y, width: preview.rect.w, height: preview.rect.h,
+  }}>
+    <span>{CATALOG[preview.type]?.name ?? "Widget"} · Solte para mover</span>
+  </div>
 }
 
 interface Screen { ox: number; oy: number; width: number; height: number; scale: number }
@@ -142,6 +168,10 @@ function Frame({ w, editing, paused, area, glass }: { w: WidgetInstance; editing
     const start = { px: e.clientX, py: e.clientY, ...r }
     const el = e.currentTarget as HTMLElement
     el.setPointerCapture(e.pointerId)
+    // O principal acompanha o cursor em coordenadas globais (DIP), mesmo fora desta janela.
+    const began = mode === "move"
+      ? invoke<boolean>("widgets:drag-start", w.id, { x: e.clientX - r.x, y: e.clientY - r.y }).catch(() => false)
+      : Promise.resolve(false)
     let cur = { x: start.x, y: start.y, w: start.w, h: start.h }
     const snap = (v: number) => Math.round(v / 8) * 8
     const mv = (ev: PointerEvent) => {
@@ -151,12 +181,22 @@ function Frame({ w, editing, paused, area, glass }: { w: WidgetInstance; editing
         : { ...cur, w: Math.max(def.min.w, snap(start.w + dx)), h: Math.max(def.min.h, snap(start.h + dy)) }
       setLive(cur)
     }
-    const up = () => {
-      el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up)
-      moveWidget(w.id, cur, area)
+    const cleanup = () => {
+      el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", cancel)
+      if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
       setTimeout(() => setLive(null), 60)
     }
-    el.addEventListener("pointermove", mv); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up)
+    const up = () => {
+      cleanup()
+      if (mode === "resize") { moveWidget(w.id, cur, area); return }
+      void began.then((ok) => {
+        // Na transferência entre janelas, o principal atualiza monitor e posição atomicamente.
+        if (ok) return invoke("widgets:drag-end")
+        moveWidget(w.id, cur, area)
+      }).catch(() => moveWidget(w.id, cur, area))
+    }
+    const cancel = () => { cleanup() } // mouseup da outra janela encerra a sessão global
+    el.addEventListener("pointermove", mv); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", cancel)
   }
   const style = {
     left: r.x, top: r.y, width: r.w, height: r.h, opacity: w.opacity,
