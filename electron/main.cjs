@@ -10,6 +10,7 @@ const { createMonitor } = require("./core/fullscreen.cjs")
 const { createNotifications } = require("./core/notifications.cjs")
 const { createNotchManager } = require("./notch/manager.cjs")
 const { createWidgetManager } = require("./widgets/manager.cjs")
+const { createWidgetDrag } = require("./widgets/drag.cjs")
 const { createCapture } = require("./share/capture.cjs")
 const { createMedia } = require("./integrations/media.cjs")
 const { createSystem } = require("./integrations/system.cjs")
@@ -30,7 +31,7 @@ app.setAppUserModelId("com.aureon.hub")
 if (process.defaultApp) app.setAsDefaultProtocolClient("aureon", process.execPath, [path.resolve(process.argv[1])])
 else app.setAsDefaultProtocolClient("aureon")
 
-let store, notch, widgets, monitor, notifications, capture, media, system, weather, games, updates, wallpaper
+let store, notch, widgets, widgetDrag, monitor, notifications, capture, media, system, weather, games, updates, wallpaper
 let mainWin = null, tray = null, quitting = false
 let shareState = { active: false }, blocker = null
 
@@ -198,6 +199,9 @@ function registerIpc() {
     ]).popup({ window: BrowserWindow.fromWebContents(e.sender) })
   })
   h("widgets:interactive", need("widgets"), (e, on) => widgets.setInteractive(e.sender, !!on))
+  h("widgets:drag-start", need("widgets"), (e, id, grab) => widgetDrag.start(windows.infoOf(e.sender)?.displayId, id, grab))
+  h("widgets:drag-end", need("widgets"), () => widgetDrag.finish())
+  h("widgets:drag-cancel", need("widgets"), () => { widgetDrag.cancel(); return true })
 
   h("app:open", any, (_e, page, params) => { showMain(typeof page === "string" ? page : undefined, params); return true })
   h("app:info", any, (e) => ({
@@ -260,12 +264,17 @@ app.whenReady().then(() => {
   })
   notch = createNotchManager({ getState: state })
   widgets = createWidgetManager({ getState: state, toDesktop: (h) => monitor.toDesktop(h) })
+  widgetDrag = createWidgetDrag({
+    screen, getState: state,
+    saveProfiles: (profiles) => store.replace("profiles", profiles),
+    sendPreview: (preview) => broadcast("widgets:drag-preview", preview, "widgets"),
+  })
   registerIpc()
 
   store.onChange((section, value) => {
     broadcast("store:changed", { section, value })
     if (section === "notch") notch.sync()
-    if (section === "widgets") { widgets.refresh(); widgets.setEditMode(value.editMode) }
+    if (section === "widgets") { if (!value.editMode) widgetDrag.cancel(); widgets.refresh(); widgets.setEditMode(value.editMode) }
     if (section === "settings") {
       applyHotkey()
       updates.schedule()
@@ -275,7 +284,7 @@ app.whenReady().then(() => {
     if (section === "notch" || section === "widgets") updateTray()
   })
   for (const ev of ["display-added", "display-removed", "display-metrics-changed"]) {
-    screen.on(ev, () => { notch.sync(); widgets.sync(); broadcast("displays:changed", null); void wallpaper.refresh() })
+    screen.on(ev, () => { widgetDrag.cancel(); notch.sync(); widgets.sync(); broadcast("displays:changed", null); void wallpaper.refresh() })
   }
 
   createMain()
@@ -295,6 +304,6 @@ app.on("window-all-closed", (e) => e.preventDefault())
 app.on("before-quit", () => {
   quitting = true
   globalShortcut.unregisterAll()
-  monitor?.stop(); wallpaper?.stop(); media?.stop(); updates?.stop(); sysaudio.stop(); system?.stop(); weather?.stop()
+  widgetDrag?.cancel(); monitor?.stop(); wallpaper?.stop(); media?.stop(); updates?.stop(); sysaudio.stop(); system?.stop(); weather?.stop()
   store?.flush()
 })
