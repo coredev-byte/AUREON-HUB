@@ -54,3 +54,16 @@
 .wg-bg-none .wg-bar { background: rgba(255, 255, 255, 0.18); }
 .wg-edit.wg-bg-none { background: rgba(255, 255, 255, 0.04); }
 .wg-bare .wg-glass::after { background: transparent; }
+
+/* Feedback de destino para arrastar widgets entre monitores (uma camada leve, sem render duplicado). */
+.wg-transfer-preview {
+  position: absolute; box-sizing: border-box; pointer-events: none; z-index: 9;
+  border: 2px dashed var(--accent); border-radius: var(--wg-radius, 14px);
+  background: color-mix(in srgb, var(--accent) 13%, rgba(0, 0, 0, .2));
+  display: grid; place-items: center;
+}
+.wg-transfer-preview span {
+  padding: 8px 12px; border-radius: 8px; background: var(--s1);
+  border: 1px solid var(--line-2); color: var(--fg); font-size: 12px;
+  font-weight: 500; text-align: center;
+}
