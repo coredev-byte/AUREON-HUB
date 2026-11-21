@@ -28,7 +28,7 @@ export interface WidgetInstance {
 }
 export type WidgetBg = "default" | "glass" | "solid" | "none"
 export interface Profile { id: string; name: string; widgets: WidgetInstance[] }
-export interface ShareSettings { quality: "auto" | "eco" | "balanced" | "quality"; resolution: "auto" | "720" | "900" | "1080" | "1440" | "2160" | "native"; audio: boolean; approval: boolean; preferHardware: boolean; name: string }
+export interface ShareSettings { quality: "auto" | "eco" | "balanced" | "quality"; resolution: "auto" | "720" | "900" | "1080" | "1440" | "2160" | "native"; audioMode: "all" | "no-discord"; audio: boolean; approval: boolean; preferHardware: boolean; name: string }
 export interface AppState {
   settings: Settings; notch: NotchSettings; widgets: WidgetsSettings; profiles: { items: Profile[] }; share: ShareSettings
 }

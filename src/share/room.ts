@@ -10,6 +10,7 @@ import { captureSource, stopStream } from "./capture"
 import { adapt, grade, initialSend, withResolution, worst, PROFILES, type AdaptState, type Profile, type QualityId, type ResolutionId } from "./quality"
 import { summarize, withStartBitrate, type LinkStats } from "./rtc"
 import { SignalClient } from "./signal"
+import { audioError, startPcmAudio, type PcmAudio } from "./pcmAudio"
 
 export interface LiveInfo { label: string; audio: boolean; since: number }
 export interface Member { peer: string; name: string; live: LiveInfo | null; away: boolean; owner: boolean }
@@ -27,6 +28,12 @@ export interface MyShare {
   viewers: ViewerInfo[]
   stats: LinkStats | null
   error: string
+  /** som do PC: "all" (tudo) ou "no-discord" (tudo menos o Discord) */
+  audioMode: "all" | "no-discord"
+  /** com "no-discord": o Discord estava aberto e ficou de fora? */
+  discordExcluded: boolean
+  /** aviso sobre o som (ex.: Windows sem suporte); a transmissão continua */
+  audioNote: string
 }
 export interface RoomState {
   phase: "idle" | "connecting" | "waiting" | "in-room" | "ended" | "error"
@@ -45,13 +52,13 @@ export interface RoomState {
   share: MyShare
   watching: Watch[]
 }
-export const idleShare = (): MyShare => ({ phase: "off", source: null, audio: false, quality: "auto", resolution: "auto", startedAt: 0, viewers: [], stats: null, error: "" })
+export const idleShare = (): MyShare => ({ phase: "off", source: null, audio: false, quality: "auto", resolution: "auto", startedAt: 0, viewers: [], stats: null, error: "", audioMode: "all", discordExcluded: false, audioNote: "" })
 export const idleRoom = (): RoomState => ({
   phase: "idle", error: "", room: "", code: "", codeExpires: 0, me: "", owner: "", name: "", members: [], requests: [], signal: "online",
   approval: true, locked: false, share: idleShare(), watching: [],
 })
 
-export interface ShareOpts { sourceId: string; sourceName: string; sourceKind: string; audio: boolean; quality: QualityId; resolution?: ResolutionId; preferHardware: boolean }
+export interface ShareOpts { sourceId: string; sourceName: string; sourceKind: string; audio: boolean; audioMode?: "all" | "no-discord"; quality: QualityId; resolution?: ResolutionId; preferHardware: boolean }
 export type RoomEvent =
   | { type: "request"; peer: string; name: string } | { type: "request-cancel"; peer: string }
   | { type: "member"; name: string } | { type: "member-left"; name: string }
@@ -76,6 +83,8 @@ export class RoomSession {
   private stream: MediaStream | null = null
   private profile: Profile = PROFILES.auto
   private shareOpts: ShareOpts | null = null
+  /** som do PC sem o Discord (captura por processo do Windows), quando escolhido */
+  private pcm: PcmAudio | null = null
   private outs = new Map<string, Out>()
   private ins = new Map<string, In>()
   private statsTimer: ReturnType<typeof setInterval> | undefined
@@ -203,21 +212,49 @@ export class RoomSession {
     if (this.state.share.phase !== "off") throw new Error("Você já está transmitindo.")
     this.shareOpts = o
     this.profile = withResolution(PROFILES[o.quality], o.resolution ?? "auto")
-    this.setShare({ ...idleShare(), phase: "capturing", quality: o.quality, resolution: o.resolution ?? "auto", audio: o.audio, source: { id: o.sourceId, name: o.sourceName, kind: o.sourceKind } })
+    const noDiscord = o.audio && o.audioMode === "no-discord"
+    this.setShare({ ...idleShare(), phase: "capturing", quality: o.quality, resolution: o.resolution ?? "auto", audio: o.audio, audioMode: noDiscord ? "no-discord" : "all", source: { id: o.sourceId, name: o.sourceName, kind: o.sourceKind } })
     try {
-      this.stream = await captureSource({ sourceId: o.sourceId, audio: o.audio, profile: this.profile, motion: this.profile.fps >= 60 })
+      // sem o Discord: a captura de tela vem sem som e o som do PC entra por outro caminho (por processo)
+      this.stream = await captureSource({ sourceId: o.sourceId, audio: o.audio && !noDiscord, profile: this.profile, motion: this.profile.fps >= 60 })
     } catch (e: any) {
       this.setShare({ ...idleShare(), error: e?.message || String(e) })
       throw e
     }
+    if (noDiscord) await this.startPcm()
     this.watchTracks()
     this.setShare({ phase: "live", audio: this.stream.getAudioTracks().length > 0, startedAt: Date.now() })
     this.sig?.send({ t: "live", on: true, label: o.sourceName, audio: this.state.share.audio })
   }
 
+  /** liga o som do PC sem o Discord; se o Windows não deixar, segue sem som e avisa (nunca manda o Discord junto) */
+  private async startPcm() {
+    try {
+      const pcm = await startPcmAudio((err) => {
+        if (this.pcm !== pcm) return
+        this.dropPcm()
+        this.setShare({ audio: false, audioNote: audioError(err) })
+      })
+      if (!this.stream) { pcm.stop(); return }
+      this.pcm = pcm
+      this.stream.addTrack(pcm.track)
+      this.setShare({ discordExcluded: pcm.excluded === "discord", audioNote: pcm.excluded === "discord" ? "" : "O Discord não estava aberto ao começar. Se abrir agora, pare e comece a transmissão de novo para deixá-lo de fora." })
+    } catch (e: any) {
+      this.setShare({ audio: false, audioNote: e?.message || String(e) })
+    }
+  }
+  private dropPcm() {
+    const p = this.pcm
+    if (!p) return
+    this.pcm = null
+    try { this.stream?.removeTrack(p.track) } catch { /* já saiu */ }
+    p.stop()
+  }
+
   stopShare() {
     if (this.state.share.phase === "off") return
     for (const peer of [...this.outs.keys()]) { this.send(peer, { dir: "down", kind: "stopped" }); this.dropOut(peer) }
+    this.dropPcm()
     stopStream(this.stream); this.stream = null
     this.sig?.send({ t: "live", on: false })
     this.setShare(idleShare())
@@ -237,8 +274,10 @@ export class RoomSession {
   /** troca a tela/janela sem derrubar ninguém (replaceTrack, sem renegociar) */
   async switchSource(sourceId: string, sourceName: string, sourceKind: string) {
     if (!this.stream) return
-    const next = await captureSource({ sourceId, audio: this.state.share.audio, profile: this.profile, motion: this.profile.fps >= 60 })
+    const next = await captureSource({ sourceId, audio: this.state.share.audio && !this.pcm, profile: this.profile, motion: this.profile.fps >= 60 })
     const old = this.stream
+    // o som sem o Discord continua o mesmo: passa para a nova captura (e não é parado junto com a antiga)
+    if (this.pcm) { try { old.removeTrack(this.pcm.track) } catch { /* nada */ } next.addTrack(this.pcm.track) }
     this.stream = next
     const v = next.getVideoTracks()[0], a = next.getAudioTracks()[0] ?? null
     for (const p of this.outs.values()) {
@@ -473,6 +512,7 @@ export class RoomSession {
     clearInterval(this.statsTimer)
     for (const peer of [...this.outs.keys()]) this.dropOut(peer)
     for (const peer of [...this.ins.keys()]) this.closeIn(peer)
+    this.dropPcm()
     stopStream(this.stream); this.stream = null
     this.sig?.close(); this.sig = null
   }

@@ -84,7 +84,8 @@ export function endRoom() { session?.endForAll(); session = null; useShare.setSt
 
 export async function startSharing(o: Omit<ShareOpts, "preferHardware">) {
   if (!session) throw new Error("Entre numa sala primeiro.")
-  await session.startShare({ ...o, preferHardware: getSection("share")?.preferHardware ?? true })
+  const prefs = getSection("share")
+  await session.startShare({ ...o, audioMode: o.audioMode ?? prefs?.audioMode ?? "all", preferHardware: prefs?.preferHardware ?? true })
 }
 export function stopSharing() { session?.stopShare() }
 export const roomSession = () => session

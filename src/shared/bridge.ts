@@ -21,7 +21,7 @@ const DEFAULT_STATE: AppState = {
   notch: { enabled: true, displays: "primary", idleClock: true, hoverExpand: true, hoverDelay: 140, scale: 1, showMedia: true, mediaSource: "", notifications: true, fullscreenIndicator: true, intro: true },
   widgets: { enabled: true, activeProfile: "padrao", hideFullscreen: true, editMode: false },
   profiles: { items: [{ id: "padrao", name: "Padrão", widgets: [] }] },
-  share: { quality: "auto", resolution: "auto", audio: false, approval: true, preferHardware: true, name: "" },
+  share: { quality: "auto", resolution: "auto", audioMode: "all", audio: false, approval: true, preferHardware: true, name: "" },
 }
 
 function browserBridge(): Native {

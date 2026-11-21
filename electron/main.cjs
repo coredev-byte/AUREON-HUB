@@ -156,7 +156,7 @@ function registerIpc() {
   teamsMod.register(fakeIpc, sportsMod.teams)
   valorant.register(fakeIpc, () => relay)
   // espectro do som do PC para a capa reativa do notch (só enquanto ela está na tela e tocando; nada é gravado)
-  sysaudio.register(fakeIpc, () => ({ ...relay, isVisible: () => true, isMinimized: () => false }))
+  sysaudio.register(fakeIpc, () => ({ ...relay, isVisible: () => true, isMinimized: () => false }), () => mainWin)
   h("fs:get", any, () => monitor.get())
 
   h("share:sources", need("main"), () => capture.sources())

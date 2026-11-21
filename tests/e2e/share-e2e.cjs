@@ -34,6 +34,18 @@ async function main() {
         window.RTCPeerConnection.prototype = RPC.prototype
         Object.assign(window.RTCPeerConnection, RPC)
         window.__streams = []
+        // imitação da captura de som por programa do Windows (sem o Discord): tom de 440 Hz em PCM 16 bits
+        window.__sysAudioChunks = 0
+        window.__aureonTestSysAudio = (push) => {
+          let ph = 0
+          const t = setInterval(() => {
+            const n = 960, a = new Int16Array(n * 2)
+            for (let i = 0; i < n; i++) { const v = Math.round(Math.sin(ph) * 12000); a[2 * i] = v; a[2 * i + 1] = v; ph += (2 * Math.PI * 440) / 48000 }
+            window.__sysAudioChunks++
+            push(a.buffer)
+          }, 20)
+          return { excluded: "discord", stop: () => clearInterval(t) }
+        }
         // fonte de teste: canvas animado com cor por "tela" (0 vermelho, 1 azul, 2 verde) + tom de áudio
         window.__screen = 0
         window.__aureonTestCapture = async (o) => {
@@ -60,9 +72,10 @@ async function main() {
     const colorOf = (p, who) => tile(p, who).evaluate((v) => { const c = document.createElement("canvas"); c.width = 16; c.height = 16; const g = c.getContext("2d"); g.drawImage(v, 0, 0, 16, 16); const d = g.getImageData(1, 1, 1, 1).data; return [d[0], d[1], d[2]] })
     const framesOf = (p, who) => tile(p, who).evaluate((v) => v.getVideoPlaybackQuality().totalVideoFrames)
     const playing = (p, who) => p.waitForFunction((w) => { const v = document.querySelector(`[aria-label="Tela de ${w}"] video`); return v && v.videoWidth > 0 && v.currentTime > 0.3 }, who, { timeout: 20000 })
-    const share = async (p, audio = false) => {
+    const share = async (p, audio = false, mode = "all") => {
       await p.getByRole("button", { name: "Transmitir minha tela" }).first().click()
       if (audio) await p.getByRole("switch", { name: "Som do PC" }).click()
+      if (audio) await p.getByLabel("Qual som").selectOption(mode)
       await p.getByRole("button", { name: /Tela inteira/ }).first().click()
       await p.getByRole("button", { name: "Começar a transmitir" }).click()
       await p.getByRole("button", { name: "Parar", exact: true }).waitFor({ timeout: 10000 })
@@ -105,13 +118,22 @@ async function main() {
 
     // 4) Ana transmite com som; Bia assiste
     const t0 = Date.now()
-    await share(ana, true)
+    await share(ana, true, "no-discord")
     await bia.getByRole("button", { name: "Assistir", exact: true }).first().click()
     await playing(bia, "Ana")
     results.firstFrameMs = Date.now() - t0
     const a1 = await tile(bia, "Ana").evaluate((v) => ({ w: v.videoWidth, audio: v.srcObject.getAudioTracks().length }))
     ok(a1.w > 0, `Bia recebe a tela da Ana (${a1.w} px de largura, primeiro quadro ${results.firstFrameMs} ms depois de começar)`)
     ok(a1.audio === 1, "som do PC da Ana chega")
+    await ana.getByText("Som sem o Discord").waitFor({ timeout: 5000 })
+    // o som recebido tem conteúdo de verdade (o tom de teste), não só uma trilha muda
+    const rms = await tile(bia, "Ana").evaluate(async (v) => {
+      const ctx = new AudioContext(); const src = ctx.createMediaStreamSource(v.srcObject); const an = ctx.createAnalyser(); an.fftSize = 2048; src.connect(an)
+      const buf = new Float32Array(2048); let best = 0
+      for (let i = 0; i < 20; i++) { await new Promise((r) => setTimeout(r, 100)); an.getFloatTimeDomainData(buf); let s = 0; for (const x of buf) s += x * x; best = Math.max(best, Math.sqrt(s / buf.length)) }
+      await ctx.close(); return best
+    })
+    ok(rms > 0.05, `"Tudo menos o Discord": o som do PC (pela captura por programa) chega a quem assiste (nível ${rms.toFixed(3)})`)
     const cA = await colorOf(bia, "Ana")
     ok(cA[0] > 180 && cA[2] < 90, "imagem certa (vermelho): " + cA)
 
@@ -162,6 +184,8 @@ async function main() {
     await caio.getByText("Ana parou de transmitir").waitFor({ timeout: 10000 })
     ok(true, "quem assistia a Ana foi avisado que ela parou")
     ok(await ana.evaluate(() => window.__streams.flatMap((s) => s.getTracks()).every((t) => t.readyState === "ended")), "nenhuma trilha da Ana continua capturando")
+    const c1 = await ana.evaluate(() => window.__sysAudioChunks); await sleep(300); const c2 = await ana.evaluate(() => window.__sysAudioChunks)
+    ok(c1 === c2, "captura do som sem o Discord parou junto")
 
     // 10) dona sai: a sala passa para a Bia, que continua transmitindo
     await ana.getByRole("button", { name: "Sair da sala" }).click()

@@ -158,6 +158,7 @@ function discordRoot() {
 
 let proc = null
 let getWin = () => null
+let getShareWin = () => null
 
 // Dois usos podem pedir o som ao mesmo tempo: a tela compartilhada nas Salas ("share", recebe o PCM)
 // e o visualizador de música do Carbono ("viz", recebe só 48 faixas do espectro, ~30 vezes por segundo).
@@ -184,14 +185,15 @@ async function launch(without) {
   p.stdout.on("data", (chunk) => {
     if (vizOn && analyzer) analyzer.push(chunk)
     if (!shareOn) return
-    const w = getWin()
+    // o PCM vai só para a janela que transmite (não para notch/widgets)
+    const w = getShareWin()
     if (w && !w.isDestroyed()) w.webContents.send("sysaudio:data", chunk)
   })
   p.stderr.on("data", (d) => (err += d))
   p.on("exit", () => {
     if (proc === p) proc = null
     if (!shareOn) return
-    const w = getWin()
+    const w = getShareWin()
     if (w && !w.isDestroyed()) w.webContents.send("sysaudio:end", err.trim())
   })
   return { ok: true, excluded: pid === process.pid ? "agenda" : "discord" }
@@ -199,6 +201,7 @@ async function launch(without) {
 function stopProc() { if (proc) { try { proc.stdin.end(); proc.kill() } catch {} proc = null } }
 
 async function start(without) {
+  if (process.platform !== "win32") return { ok: false }
   shareOn = true
   return launch(without)
 }
@@ -227,11 +230,12 @@ function setViz(on) {
 }
 function stop() { shareOn = false; vizOn = false; clearInterval(vizTimer); vizTimer = null; analyzer = null; stopProc() }
 
-function register(ipcMain, winGetter) {
+function register(ipcMain, winGetter, shareWinGetter = winGetter) {
   getWin = winGetter
+  getShareWin = shareWinGetter
   ipcMain.handle("sysaudio:start", (_e, without) => start(without === "agenda" ? "agenda" : "discord"))
   ipcMain.handle("sysaudio:stop", () => stopShare())
   ipcMain.handle("sysaudio:viz", (_e, on) => setViz(on))
 }
 
-module.exports = { register, stop }
+module.exports = { register, stop, PS }

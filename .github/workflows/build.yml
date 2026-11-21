@@ -31,6 +31,9 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx electron-builder --win nsis --x64 --publish never
+      # som do PC sem um programa (opção "Tudo menos o Discord"): o ajudante C# compila e roda no Windows
+      - name: Ajudante de som por programa
+        run: node scripts/check-sysaudio.cjs
       # instala em silêncio, abre em modo fumaça, confere o relatório e desinstala
       - name: Instalar, abrir e desinstalar
         shell: pwsh

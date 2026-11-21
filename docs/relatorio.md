@@ -1,6 +1,23 @@
-# Relatório da reconstrução: Widgy → Aureon Hub 0.5.3
+# Relatório da reconstrução: Widgy → Aureon Hub 0.5.4
 
 
+
+
+## 0.5.4 (pedido do usuário: transmitir sem o som do Discord)
+
+- **Nova opção em Som do PC: "Tudo menos o Discord".** Quem assiste ouve o jogo, a música e o resto, mas não a call do Discord.
+- **Como funciona:**
+  - Usa a captura de som por programa do Windows (process loopback, modo "excluir a árvore do processo", Windows 10 versão 2004 ou mais novo, ou Windows 11), a mesma do Widgy.
+  - O app encontra o processo principal do Discord (também PTB e Canary) e deixa de fora ele e todos os processos filhos.
+  - O som chega como PCM 48 kHz e vira uma trilha de áudio comum da transmissão (AudioWorklet), com pouca fila para não atrasar em relação ao vídeo.
+- **Nunca manda o Discord por engano:** se o Windows não permitir separar, a transmissão continua **sem som** e avisa. Não cai para o "som do PC inteiro".
+- **Discord fechado ao começar:** vai o som do PC normalmente e aparece um aviso. Se abrir o Discord depois, é preciso parar e recomeçar a transmissão para deixá-lo de fora.
+- **Trocar de tela:** o som sem o Discord continua o mesmo, sem cortar.
+- O PCM vai só para a janela principal (antes ia para todas as janelas do app).
+- **Testes:**
+  - ponta a ponta: Ana transmite com "Tudo menos o Discord" (um tom de teste no lugar da captura do Windows) e a Bia recebe som de verdade (nível medido), e a captura para junto quando a Ana para;
+  - CI do Windows: compila e roda o ajudante de captura.
+- **Não testado num PC com Discord tocando de verdade:** o teste do Windows no GitHub não tem Discord nem placa de som.
 
 ## 0.5.3 (pedido do usuário: escolher a resolução da transmissão)
 

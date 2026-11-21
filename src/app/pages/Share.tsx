@@ -189,6 +189,8 @@ function ShareBar({ onPick, picking }: { onPick: () => void; picking: boolean })
       <span className="au-live">Ao vivo · {fmtTime((now.getTime() - sh.startedAt) / 1000)}</span>
       <div className="grow" style={{ minWidth: 140 }}>
         <div className="truncate" style={{ fontWeight: 500 }}>{sh.phase === "capturing" ? "Capturando…" : sh.source?.name}</div>
+        {sh.audioMode === "no-discord" && sh.audio && <span className="au-chip" style={{ marginRight: 6 }} title="O som da sua call no Discord não vai para quem assiste">{sh.discordExcluded ? "Som sem o Discord" : "Som do PC"}</span>}
+        {sh.audioNote && <div className="tiny" style={{ color: "var(--warn)" }}>{sh.audioNote}</div>}
         <div className="tiny au-muted num">{sh.viewers.length} assistindo{st ? ` · ${st.width}×${st.height} · ${st.fps} fps · ${(st.kbps / 1000).toFixed(1)} Mbit/s${st.codec ? " · " + st.codec + (st.hardware ? " (placa)" : "") : ""}` : ""}</div>
       </div>
       <Segmented label="Qualidade" value={sh.quality} onChange={(q) => void setQuality(q)} options={QUALITIES.map((q) => ({ value: q, label: PROFILES[q].label }))} />
@@ -374,6 +376,15 @@ function SourcePanel({ title, onPick, onClose, live }: { title: string; onPick: 
             <label className="row small" style={{ gap: 8 }} title={isElectron && navigator.userAgent.includes("Windows") ? "Envia todo o som do computador (o Windows não separa o som de uma janela só)." : "Disponível no Windows."}>
               <Switch label="Som do PC" checked={prefs.audio} onChange={(v) => void patch("share", { audio: v })} />Som do PC
             </label>
+            {prefs.audio && (
+              <label className="row small" style={{ gap: 8 }} title="Tudo menos o Discord: quem assiste ouve o jogo, a música e o resto, mas não a sua call. Usa a captura por programa do Windows (10 versão 2004 ou mais novo, ou 11).">
+                Som
+                <select className="field" aria-label="Qual som" value={prefs.audioMode ?? "all"} onChange={(e) => void patch("share", { audioMode: e.target.value as "all" | "no-discord" })}>
+                  <option value="all">Tudo do PC</option>
+                  <option value="no-discord">Tudo menos o Discord</option>
+                </select>
+              </label>
+            )}
             <label className="row small" style={{ gap: 8 }} title="Usa H.264 (NVENC, Quick Sync, AMF) quando existir: menos uso de processador.">
               <Switch label="Preferir placa de vídeo" checked={prefs.preferHardware} onChange={(v) => void patch("share", { preferHardware: v })} />Placa de vídeo
             </label>
