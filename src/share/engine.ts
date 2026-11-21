@@ -6,7 +6,7 @@ import { invoke, on } from "@/shared/bridge"
 import { setSharePublicLocal } from "@/shared/hooks"
 import { getSection } from "@/shared/state"
 import type { SharePublic } from "@/shared/types"
-import { PROFILES, type QualityId } from "./quality"
+import { PROFILES, RESOLUTIONS, type QualityId, type ResolutionId } from "./quality"
 import { RoomSession, idleRoom, type RoomEvent, type RoomState, type ShareOpts } from "./room"
 
 interface ShareStore { room: RoomState; grade: "good" | "fair" | "poor" }
@@ -25,7 +25,7 @@ function publish() {
     pub = {
       active: true, role: sharing ? "host" : "viewer", phase: sharing ? r.share.phase : r.phase,
       source: r.share.source?.name ?? "", startedAt: r.share.startedAt || Date.now(), viewers: r.share.viewers.length,
-      requests: r.requests.length, code: r.code, quality: PROFILES[r.share.quality].label, audio: r.share.audio,
+      requests: r.requests.length, code: r.code, quality: PROFILES[r.share.quality].label + (r.share.resolution !== "auto" ? " · " + (RESOLUTIONS.find((x) => x.id === r.share.resolution)?.label ?? "") : ""), audio: r.share.audio,
       hostName: watching.join(", "), members: r.members.length, live: r.members.filter((m) => m.live).length, owner: r.me === r.owner,
       connection: r.signal === "reconnecting" ? "reconnecting" : r.signal === "offline" ? "offline" : grade,
     }
@@ -90,6 +90,7 @@ export function stopSharing() { session?.stopShare() }
 export const roomSession = () => session
 export async function switchSource(id: string, name: string, kind: string) { await session?.switchSource(id, name, kind) }
 export async function setQuality(q: QualityId) { await session?.setQuality(q) }
+export async function setResolution(r: ResolutionId) { await session?.setResolution(r) }
 export function watchPeer(peer: string) { session?.watch(peer) }
 export function unwatchPeer(peer: string) { session?.unwatch(peer) }
 export function admit(peer: string, ok: boolean) {

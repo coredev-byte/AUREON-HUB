@@ -7,7 +7,7 @@
 // Os sinais levam `dir`: "up" (de quem assiste para quem transmite) ou "down" (de quem transmite para quem assiste).
 // Nada começa sem a pessoa escolher a tela (consentimento) e ninguém controla o PC de ninguém.
 import { captureSource, stopStream } from "./capture"
-import { adapt, grade, initialSend, worst, PROFILES, type AdaptState, type Profile, type QualityId } from "./quality"
+import { adapt, grade, initialSend, withResolution, worst, PROFILES, type AdaptState, type Profile, type QualityId, type ResolutionId } from "./quality"
 import { summarize, withStartBitrate, type LinkStats } from "./rtc"
 import { SignalClient } from "./signal"
 
@@ -22,6 +22,7 @@ export interface MyShare {
   source: { id: string; name: string; kind: string } | null
   audio: boolean
   quality: QualityId
+  resolution: ResolutionId
   startedAt: number
   viewers: ViewerInfo[]
   stats: LinkStats | null
@@ -44,13 +45,13 @@ export interface RoomState {
   share: MyShare
   watching: Watch[]
 }
-export const idleShare = (): MyShare => ({ phase: "off", source: null, audio: false, quality: "auto", startedAt: 0, viewers: [], stats: null, error: "" })
+export const idleShare = (): MyShare => ({ phase: "off", source: null, audio: false, quality: "auto", resolution: "auto", startedAt: 0, viewers: [], stats: null, error: "" })
 export const idleRoom = (): RoomState => ({
   phase: "idle", error: "", room: "", code: "", codeExpires: 0, me: "", owner: "", name: "", members: [], requests: [], signal: "online",
   approval: true, locked: false, share: idleShare(), watching: [],
 })
 
-export interface ShareOpts { sourceId: string; sourceName: string; sourceKind: string; audio: boolean; quality: QualityId; preferHardware: boolean }
+export interface ShareOpts { sourceId: string; sourceName: string; sourceKind: string; audio: boolean; quality: QualityId; resolution?: ResolutionId; preferHardware: boolean }
 export type RoomEvent =
   | { type: "request"; peer: string; name: string } | { type: "request-cancel"; peer: string }
   | { type: "member"; name: string } | { type: "member-left"; name: string }
@@ -201,8 +202,8 @@ export class RoomSession {
     if (this.state.phase !== "in-room") throw new Error("Entre numa sala primeiro.")
     if (this.state.share.phase !== "off") throw new Error("Você já está transmitindo.")
     this.shareOpts = o
-    this.profile = PROFILES[o.quality]
-    this.setShare({ ...idleShare(), phase: "capturing", quality: o.quality, audio: o.audio, source: { id: o.sourceId, name: o.sourceName, kind: o.sourceKind } })
+    this.profile = withResolution(PROFILES[o.quality], o.resolution ?? "auto")
+    this.setShare({ ...idleShare(), phase: "capturing", quality: o.quality, resolution: o.resolution ?? "auto", audio: o.audio, source: { id: o.sourceId, name: o.sourceName, kind: o.sourceKind } })
     try {
       this.stream = await captureSource({ sourceId: o.sourceId, audio: o.audio, profile: this.profile, motion: this.profile.fps >= 60 })
     } catch (e: any) {
@@ -253,15 +254,19 @@ export class RoomSession {
     this.sig?.send({ t: "live", on: true, label: sourceName, audio: this.state.share.audio })
   }
 
-  async setQuality(q: QualityId) {
-    this.profile = PROFILES[q]
+  async setQuality(q: QualityId) { await this.applyProfile(q, this.state.share.resolution) }
+  async setResolution(r: ResolutionId) { await this.applyProfile(this.state.share.quality, r) }
+
+  /** troca qualidade/resolução durante a transmissão: recorta a captura e reinicia o envio, sem reconectar */
+  private async applyProfile(q: QualityId, r: ResolutionId) {
+    this.profile = withResolution(PROFILES[q], r)
     const v = this.stream?.getVideoTracks()[0]
     if (v) {
       v.contentHint = this.profile.fps >= 60 ? "motion" : "detail"
       try { await v.applyConstraints({ frameRate: { max: this.profile.fps }, width: { max: this.profile.width }, height: { max: this.profile.height } }) } catch { /* fonte não aceita */ }
     }
     for (const p of this.outs.values()) { p.adapt = initialSend(this.profile); await this.applyParams(p) }
-    this.setShare({ quality: q })
+    this.setShare({ quality: q, resolution: r })
   }
 
   private syncViewers() {
@@ -319,7 +324,7 @@ export class RoomSession {
       e.maxBitrate = p.adapt.params.maxKbps * 1000
       e.scaleResolutionDownBy = p.adapt.params.scale
       e.maxFramerate = p.adapt.params.fps
-      ;(prm as any).degradationPreference = this.profile.fps >= 60 ? "maintain-framerate" : "maintain-resolution"
+      ;(prm as any).degradationPreference = this.profile.fixedRes ? "maintain-resolution" : this.profile.fps >= 60 ? "maintain-framerate" : "maintain-resolution"
       try { await s.setParameters(prm) } catch { /* antes da negociação terminar */ }
     }
   }

@@ -68,6 +68,8 @@ const DEFAULTS = {
   },
   share: {
     quality: "auto",
+    /** resolução de envio: "auto" (pela qualidade), "720"…"2160" ou "native" (a da tela) */
+    resolution: "auto",
     audio: false,
     approval: true,
     preferHardware: true,
@@ -159,6 +161,7 @@ function sanitize(section, v) {
   }
   if (section === "share") {
     if (!["auto", "eco", "balanced", "quality"].includes(out.quality)) out.quality = "auto"
+    if (!["auto", "720", "900", "1080", "1440", "2160", "native"].includes(out.resolution)) out.resolution = "auto"
     out.name = str(out.name, 40)
   }
   return out

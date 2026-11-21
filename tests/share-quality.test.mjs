@@ -38,3 +38,28 @@ test("nota da conexão", () => {
   assert.equal(grade({ ...good, lossPct: 12 }), "poor")
   assert.equal(worst(["good", "poor", "fair"]), "poor")
 })
+
+test("resolução escolhida: tamanho da captura, taxa proporcional e teto", async () => {
+  const { withResolution, PROFILES: P } = await import("../src/share/quality.ts")
+  assert.equal(withResolution(P.auto, "auto"), P.auto, "automática não mexe no perfil")
+  const r720 = withResolution(P.balanced, "720"), r1440 = withResolution(P.quality, "1440"), r4k = withResolution(P.quality, "2160")
+  assert.equal(r720.height, 720); assert.equal(r720.fixedRes, true)
+  assert.ok(r720.width >= 1280 && r720.width / r720.height > 2, "caixa larga: telas ultrawide não são cortadas")
+  assert.ok(r720.maxKbps < P.balanced.maxKbps, "720p pede menos taxa que 1080p")
+  assert.ok(r1440.maxKbps > P.quality.maxKbps, "1440p pede mais taxa")
+  assert.ok(r4k.maxKbps <= 30000 && r4k.maxKbps > r1440.maxKbps, "4K com teto de 30 Mbit/s")
+  assert.equal(withResolution(P.eco, "native").height, 4320, "original da tela: sem limite prático")
+})
+
+test("resolução fixa: rede ruim reduz quadros por segundo, nunca a imagem", async () => {
+  const { withResolution, initialSend, adapt, PROFILES: P } = await import("../src/share/quality.ts")
+  const p = withResolution(P.quality, "1080")
+  let st = initialSend(p)
+  for (let i = 0; i < 12; i++) st = adapt(st, { fps: 60, width: 1920, height: 1080, kbps: 900, limit: "bandwidth" }, p)
+  assert.equal(st.params.scale, 1, "resolução mantida")
+  assert.ok(st.params.fps < 60, "quadros reduzidos")
+  // sem resolução fixa, a mesma rede reduz a imagem
+  let free = initialSend(P.quality)
+  for (let i = 0; i < 12; i++) free = adapt(free, { fps: 60, width: 1920, height: 1080, kbps: 900, limit: "bandwidth" }, P.quality)
+  assert.ok(free.params.scale > 1)
+})

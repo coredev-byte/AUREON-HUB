@@ -9,15 +9,26 @@ import { patch, useSection } from "@/shared/state"
 import { PageHead, Section, Segmented, Switch, Empty, cx } from "@/shared/ui"
 import type { ShareSource } from "@/shared/types"
 import {
-  admit, createRoom, endRoom, joinRoom, leaveRoom, roomSession, setQuality, signalUrl, startSharing, stopSharing, switchSource, unwatchPeer, useShare, watchPeer,
+  admit, createRoom, endRoom, joinRoom, leaveRoom, roomSession, setQuality, signalUrl, setResolution, startSharing, stopSharing, switchSource, unwatchPeer, useShare, watchPeer,
 } from "@/share/engine"
 import type { Member, Watch } from "@/share/room"
-import { PROFILES, type QualityId } from "@/share/quality"
+import { PROFILES, RESOLUTIONS, type QualityId, type ResolutionId } from "@/share/quality"
 import { diagnose, report, type DiagResult } from "@/share/diag"
 import { useNav } from "../nav"
 
 type Tab = "room" | "server"
 const QUALITIES: QualityId[] = ["auto", "eco", "balanced", "quality"]
+/** escolha da resolução de envio (lista suspensa: são 7 opções) */
+function ResolutionPick({ value, onChange }: { value: ResolutionId; onChange: (r: ResolutionId) => void }) {
+  return (
+    <label className="row small" style={{ gap: 8 }} title="Automática: segue a qualidade e a rede. Fixa: a imagem mantém essa resolução e, se a rede apertar, diminui a taxa e os quadros por segundo.">
+      Resolução
+      <select className="field" aria-label="Resolução" value={value} onChange={(e) => onChange(e.target.value as ResolutionId)}>
+        {RESOLUTIONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+      </select>
+    </label>
+  )
+}
 /** "abcd efgh" -> "ABCD-EFGH" enquanto digita */
 export const tidyCode = (v: string) => { const s = v.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 8); return s.length > 4 ? s.slice(0, 4) + "-" + s.slice(4) : s }
 const hue = (s: string) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h }
@@ -129,9 +140,9 @@ function InRoom({ pick }: { pick: boolean }) {
           <SourcePanel
             title={r.share.phase === "source-lost" ? "A tela fechou: escolha outra" : sharing ? "Trocar a tela" : "O que você quer transmitir?"}
             onClose={() => setPicking(false)} live={sharing}
-            onPick={async (s, audio, quality) => {
+            onPick={async (s, audio, quality, resolution) => {
               if (sharing) await switchSource(s.id, s.name, s.kind)
-              else await startSharing({ sourceId: s.id, sourceName: s.name, sourceKind: s.kind, audio, quality })
+              else await startSharing({ sourceId: s.id, sourceName: s.name, sourceKind: s.kind, audio, quality, resolution })
               setPicking(false)
             }} />
         )}
@@ -181,6 +192,7 @@ function ShareBar({ onPick, picking }: { onPick: () => void; picking: boolean })
         <div className="tiny au-muted num">{sh.viewers.length} assistindo{st ? ` · ${st.width}×${st.height} · ${st.fps} fps · ${(st.kbps / 1000).toFixed(1)} Mbit/s${st.codec ? " · " + st.codec + (st.hardware ? " (placa)" : "") : ""}` : ""}</div>
       </div>
       <Segmented label="Qualidade" value={sh.quality} onChange={(q) => void setQuality(q)} options={QUALITIES.map((q) => ({ value: q, label: PROFILES[q].label }))} />
+      <ResolutionPick value={sh.resolution} onChange={(r) => { void patch("share", { resolution: r }); void setResolution(r) }} />
       <button type="button" className="au-btn au-btn-sm" onClick={onPick}><Repeat size={13} />Trocar tela</button>
       <button type="button" className="au-btn au-btn-sm au-btn-danger" onClick={stopSharing}><Square size={11} />Parar</button>
     </div>
@@ -318,7 +330,7 @@ function Sidebar() {
 }
 
 /* ───────────── escolher tela/janela ───────────── */
-function SourcePanel({ title, onPick, onClose, live }: { title: string; onPick: (s: ShareSource, audio: boolean, q: QualityId) => Promise<void>; onClose: () => void; live: boolean }) {
+function SourcePanel({ title, onPick, onClose, live }: { title: string; onPick: (s: ShareSource, audio: boolean, q: QualityId, r: ResolutionId) => Promise<void>; onClose: () => void; live: boolean }) {
   const prefs = useSection("share")
   const [list, setList] = useState<ShareSource[] | null>(null)
   const [err, setErr] = useState("")
@@ -331,7 +343,7 @@ function SourcePanel({ title, onPick, onClose, live }: { title: string; onPick: 
   const go = async (s: ShareSource | null) => {
     if (!s) return
     setBusy(true); setErr("")
-    try { await onPick(s, prefs.audio, prefs.quality) } catch (e: any) { setErr(e?.message || String(e)) } finally { setBusy(false) }
+    try { await onPick(s, prefs.audio, prefs.quality, prefs.resolution ?? "auto") } catch (e: any) { setErr(e?.message || String(e)) } finally { setBusy(false) }
   }
   const card = (s: ShareSource) => (
     <button key={s.id} type="button" onClick={() => { setSel(s); if (live) void go(s) }} onDoubleClick={() => void go(s)} aria-pressed={sel?.id === s.id}
@@ -358,6 +370,7 @@ function SourcePanel({ title, onPick, onClose, live }: { title: string; onPick: 
           <hr className="au-sep" style={{ margin: "4px 0 12px" }} />
           <div className="row" style={{ gap: 14, flexWrap: "wrap" }}>
             <Segmented label="Qualidade" value={prefs.quality} onChange={(v) => void patch("share", { quality: v })} options={QUALITIES.map((q) => ({ value: q, label: PROFILES[q].label }))} />
+            <ResolutionPick value={prefs.resolution ?? "auto"} onChange={(r) => void patch("share", { resolution: r })} />
             <label className="row small" style={{ gap: 8 }} title={isElectron && navigator.userAgent.includes("Windows") ? "Envia todo o som do computador (o Windows não separa o som de uma janela só)." : "Disponível no Windows."}>
               <Switch label="Som do PC" checked={prefs.audio} onChange={(v) => void patch("share", { audio: v })} />Som do PC
             </label>

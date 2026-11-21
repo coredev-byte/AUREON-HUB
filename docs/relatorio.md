@@ -1,5 +1,15 @@
-# Relatório da reconstrução: Widgy → Aureon Hub 0.5.2
+# Relatório da reconstrução: Widgy → Aureon Hub 0.5.3
 
+
+
+## 0.5.3 (pedido do usuário: escolher a resolução da transmissão)
+
+- **Resolução de envio:** Automática, 720p, 900p, 1080p, 1440p (2K), 2160p (4K) ou Original da tela. Dá para escolher antes de começar, ao lado da qualidade, e trocar durante a transmissão sem reconectar ninguém. A escolha fica salva.
+  - A largura acompanha o formato da tela, então monitores ultrawide não são cortados.
+  - A taxa de envio sobe ou desce com a quantidade de pixels: 1440p e 4K pedem mais Mbit/s, com teto de 30 Mbit/s.
+  - **Resolução fixa:** se a rede apertar, o ajuste automático reduz a taxa e os quadros por segundo, mas não a resolução. Na "Automática", continua como antes, reduzindo também a imagem.
+  - Conferido no Electron capturando uma tela 2560×1440: 720p, 1080p e 1440p saem exatamente nesses tamanhos, e "Original" sai em 2560×1440.
+  - Novos testes em `tests/share-quality.test.mjs`.
 
 ## 0.5.2 (pedido do usuário: desenhos sobrepostos nos widgets Aureon e notch fechando na hora)
 

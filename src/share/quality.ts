@@ -2,7 +2,43 @@
 import type { LinkStats } from "./rtc"
 
 export type QualityId = "auto" | "eco" | "balanced" | "quality"
-export interface Profile { id: QualityId; label: string; desc: string; width: number; height: number; fps: number; maxKbps: number; startKbps: number }
+export interface Profile {
+  id: QualityId; label: string; desc: string; width: number; height: number; fps: number; maxKbps: number; startKbps: number
+  /** resolução escolhida pela pessoa: a rede reduz taxa e quadros, nunca a resolução */
+  fixedRes?: boolean
+}
+
+/** resolução de envio (a altura; a largura acompanha o formato da tela, inclusive ultrawide) */
+export type ResolutionId = "auto" | "720" | "900" | "1080" | "1440" | "2160" | "native"
+export const RESOLUTIONS: { id: ResolutionId; label: string; height: number }[] = [
+  { id: "auto", label: "Automática", height: 0 },
+  { id: "720", label: "720p", height: 720 },
+  { id: "900", label: "900p", height: 900 },
+  { id: "1080", label: "1080p (Full HD)", height: 1080 },
+  { id: "1440", label: "1440p (2K)", height: 1440 },
+  { id: "2160", label: "2160p (4K)", height: 2160 },
+  { id: "native", label: "Original da tela", height: 4320 },
+]
+const FULL_HD = 1920 * 1080
+
+/**
+ * Perfil de qualidade com a resolução escolhida. A taxa acompanha a quantidade de pixels
+ * (mais pixels pedem mais Mbit/s para não ficar borrado), com teto de 30 Mbit/s.
+ */
+export function withResolution(p: Profile, res: ResolutionId = "auto"): Profile {
+  const r = RESOLUTIONS.find((x) => x.id === res)
+  if (!r || !r.height) return p
+  const height = r.height
+  // caixa larga o bastante para 21:9; telas 16:9 ficam limitadas pela altura
+  const width = Math.round((height * 64) / 27)
+  const px = res === "native" ? 2560 * 1440 : Math.round((height * 16) / 9) * height
+  const k = Math.pow(px / FULL_HD, 0.75)
+  return {
+    ...p, width, height, fixedRes: true, desc: `${r.label} · ${p.fps} fps`,
+    maxKbps: Math.min(30000, Math.max(1500, Math.round(p.maxKbps * k))),
+    startKbps: Math.min(12000, Math.max(1000, Math.round(p.startKbps * k))),
+  }
+}
 
 export const PROFILES: Record<QualityId, Profile> = {
   eco: { id: "eco", label: "Econômico", desc: "720p · 30 fps", width: 1280, height: 720, fps: 30, maxKbps: 2500, startKbps: 1500 },
@@ -32,7 +68,9 @@ export function adapt(st: AdaptState, s: LinkStats | null, p: Profile): AdaptSta
   const cpu = s.limit === "cpu"
   if (congested) {
     prm.maxKbps = Math.max(400, Math.round(prm.maxKbps * 0.75))
-    if (prm.maxKbps < 1200 && prm.scale < 2) prm.scale = Math.min(2, Math.round(prm.scale * 1.5 * 100) / 100)
+    // resolução fixa: em vez de diminuir a imagem, diminui os quadros por segundo
+    if (prm.maxKbps < 1200 && p.fixedRes) prm.fps = Math.max(15, prm.fps > 30 ? 30 : prm.fps - 5)
+    else if (prm.maxKbps < 1200 && prm.scale < 2) prm.scale = Math.min(2, Math.round(prm.scale * 1.5 * 100) / 100)
     return { params: prm, good: 0 }
   }
   if (cpu) {
