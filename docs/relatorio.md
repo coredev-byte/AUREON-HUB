@@ -1,4 +1,13 @@
-# Relatório da reconstrução: Widgy → Aureon Hub 0.5.0
+# Relatório da reconstrução: Widgy → Aureon Hub 0.5.2
+
+
+## 0.5.2 (pedido do usuário: desenhos sobrepostos nos widgets Aureon e notch fechando na hora)
+
+- **Ícones do clima sem traços cruzando:** nas cenas com duas camadas (nublado, parcialmente nublado, noite com nuvens, vento), o que fica atrás (sol, lua, segunda nuvem, rajadas) passou a ser recortado no formato da nuvem da frente, com uma folga. Antes, os contornos passavam um por cima do outro.
+- **Cena atrás do ícone:** um respiro escuro em volta do ícone impede que chuva, nuvens e montanhas cruzem o desenho. A rajada de vento e a montanha da neve saíram da altura do ícone. O raio da tempestade agora começa abaixo da nuvem.
+- **Valorant:** a arte do agente aparece só nos cartões largos, numa área própria à direita. Os times ficam com o escudo em cima e o nome embaixo, sem nada por cima.
+- **Futebol:** o 2º tempo aparecia como "Intervalo", porque o status "STATUS_SECOND_HALF" contém "half". Agora só STATUS_HALFTIME e "HT" contam como intervalo. Há teste novo para isso.
+- **Notch:** ao tirar o mouse do painel aberto, ele fecha na hora (antes esperava 0,45 s, ou 1,6 s quando aberto por clique), e a animação de fechar ficou mais curta. A faixa de tolerância em volta do desenho continua evitando que ele feche por engano.
 
 ## 0.5.0 (pedido do usuário: abertura, esportes e clima na estética Aureon, transmissão em grupo com código curto)
 

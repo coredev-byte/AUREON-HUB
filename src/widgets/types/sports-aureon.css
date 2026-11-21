@@ -17,7 +17,12 @@
 .spa-sub { font-size: 12.5px; white-space: nowrap; }
 .spa[data-layout="live"] .spa-team:first-child { justify-content: flex-start; }
 /* arte do agente (Valorant) à direita, sumindo para o centro */
-.spa-agent { position: absolute; right: -6%; top: -6%; height: 125%; z-index: 0; pointer-events: none; opacity: 0.55; -webkit-mask-image: linear-gradient(90deg, transparent, #000 45%); mask-image: linear-gradient(90deg, transparent, #000 45%); }
+.spa-agent { position: absolute; right: -2%; bottom: 0; height: 118%; max-width: 40%; object-fit: cover; object-position: top; z-index: 0; pointer-events: none; opacity: 0.6; -webkit-mask-image: linear-gradient(90deg, transparent, #000 40%), linear-gradient(transparent 70%, #000); mask-image: linear-gradient(90deg, transparent 0%, #000 40%); }
+.spa-score[data-art="true"] { margin-right: 32%; }
+/* com a arte do agente: escudo em cima e nome embaixo, para o nome caber */
+.spa-score[data-art="true"] .spa-team { flex-direction: column; gap: 6px; text-align: center; }
+.spa-score[data-art="true"] .spa-team.spa-right { flex-direction: column-reverse; }
+.spa-score[data-art="true"] .spa-short { font-size: 15px; max-width: 100%; }
 
 /* pequeno */
 .spa-mini { flex: 1; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; }

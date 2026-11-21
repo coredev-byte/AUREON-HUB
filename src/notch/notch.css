@@ -8,7 +8,7 @@
   --nbg: var(--notch-bg, #000); --ear: 11px;
   /* abrir: mola curta (passa um pouco e assenta); fechar: direto, sem quicar */
   --n-open: cubic-bezier(0.34, 1.32, 0.5, 1); --n-close: cubic-bezier(0.32, 0.72, 0, 1);
-  --n-dur: calc(var(--t-slow) * 1.05);
+  --n-dur: calc(var(--t-slow) * 0.75);
   position: relative; pointer-events: auto; background: var(--nbg); color: var(--sh-fg);
   width: var(--w); height: var(--h); border-radius: 0 0 var(--r) var(--r);
   transition: width var(--n-dur) var(--n-close), height var(--n-dur) var(--n-close), border-radius var(--n-dur) var(--n-close);

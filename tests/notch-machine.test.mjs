@@ -33,19 +33,22 @@ test("mouse só passando: sai antes do tempo e não abre (sem expansão involunt
 test("abrir/fechar rápido várias vezes termina num estado coerente", () => {
   let s = initial()
   for (let i = 0; i < 50; i++) s = run(s, { type: "enter" }, { type: "hover-timeout" }, { type: "leave" }, { type: "enter" })
+  // fecha na hora ao sair; voltando, recomeça pelo "hover" (abre de novo depois do tempo de espera)
+  assert.equal(s.mode, "hover")
+  s = run(s, { type: "hover-timeout" })
   assert.equal(s.mode, "expanded")
-  s = run(s, { type: "leave" }, { type: "collapse" })
+  s = run(s, { type: "leave" })
   assert.equal(s.mode, "idle")
 })
 
-test("fechar ao sair: mais devagar quando aberto por clique", () => {
+test("fechar ao sair: na hora, aberto pelo mouse ou por clique", () => {
+  assert.equal(COLLAPSE_MS, 0); assert.equal(PINNED_COLLAPSE_MS, 0)
   let s = run(initial(), { type: "enter" }, { type: "hover-timeout" }, { type: "leave" })
-  assert.equal(s.timer.ms, COLLAPSE_MS)
+  assert.equal(s.mode, "idle"); assert.equal(s.timer, null)
   s = run(initial(), { type: "enter" }, { type: "click" }, { type: "leave" })
-  assert.equal(s.pinned, true)
-  assert.equal(s.timer.ms, PINNED_COLLAPSE_MS)
-  // voltou antes do tempo: continua aberto
-  s = run(s, { type: "enter" }, { type: "collapse" })
+  assert.equal(s.mode, "idle"); assert.equal(s.pinned, false)
+  // um "collapse" atrasado não reabre nem fecha nada depois que o mouse voltou
+  s = run(initial(), { type: "enter" }, { type: "click" }, { type: "collapse" })
   assert.equal(s.mode, "expanded")
 })
 

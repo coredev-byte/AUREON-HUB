@@ -184,7 +184,8 @@ function parseEspn(j, league) {
     const minute = state === "live" ? parseInt(String(status.displayClock || ""), 10) || undefined : undefined
     const period = state === "live" ? Number(status.period) || undefined : undefined
     let detail = ""
-    if (state === "live") detail = /half/i.test(st.name || "") || /HT/.test(st.shortDetail || "") ? "Intervalo" : status.displayClock || st.shortDetail
+    // intervalo é só STATUS_HALFTIME / "HT" ("STATUS_SECOND_HALF" também tem "half" no nome)
+    if (state === "live") detail = /HALFTIME|HALF_TIME/i.test(st.name || "") || /^HT$/i.test(String(st.shortDetail || "").trim()) ? "Intervalo" : status.displayClock || st.shortDetail
     else if (state === "done") detail = /pen/i.test(st.shortDetail || "") ? "Pênaltis" : "Encerrado"
     if (/postpon|cancel|suspend/i.test(st.name || "")) detail = "Adiado"
     return {

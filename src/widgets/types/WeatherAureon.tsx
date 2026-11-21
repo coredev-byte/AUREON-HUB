@@ -3,7 +3,7 @@
 // neblina, vento, neve e noite). Tudo desenhado aqui (SVG/CSS), com dados reais do Open-Meteo.
 // Movimento só com transform/opacity (a placa de vídeo anima sozinha) e parado em tela cheia ou com
 // "reduzir animações".
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useId, useMemo, useState } from "react"
 import { Cloud, MapPin, MoreHorizontal, X } from "lucide-react"
 import { useStore } from "../widgy/compat/store"
 import { friendlyError } from "../widgy/compat/bridge"
@@ -134,8 +134,8 @@ function SceneArt({ scene }: { scene: Scene }) {
         {scene === "wind" && <g transform="translate(120 130)"><Clouds tone="#55647f" n={2} /></g>}
         {scene === "snow" && (
           <>
-            <path d="M120 260 L210 170 L240 195 L290 140 L400 240 L400 260Z" fill="url(#waurMount)" opacity=".9" />
-            <path d="M290 140 L272 157 L283 160 L294 150 L304 156Z" fill="#cfd8e8" opacity=".8" />
+            <g transform="translate(0 50)"><path d="M120 260 L210 170 L240 195 L290 140 L400 240 L400 260Z" fill="url(#waurMount)" opacity=".9" />
+            <path d="M290 140 L272 157 L283 160 L294 150 L304 156Z" fill="#cfd8e8" opacity=".8" /></g>
             <g transform="translate(150 180)"><Clouds tone="#8fa0bb" n={2} /></g>
           </>
         )}
@@ -156,34 +156,65 @@ function SceneArt({ scene }: { scene: Scene }) {
 
 /* ───────────── ícones (traço branco com brilho e detalhe em azul) ───────────── */
 const CLOUD = "M22 50h30a13 13 0 0 0 1-26 18 18 0 0 0-34 4 11 11 0 0 0 3 22Z"
+/**
+ * Ícones com camadas que não se cruzam: o que fica atrás (sol, lua, segunda nuvem) é recortado no formato
+ * da nuvem da frente, com uma folga, em vez de ter os traços passando um por cima do outro.
+ */
 function SceneIcon({ scene }: { scene: Scene }) {
+  const uid = useId().replace(/:/g, "")
   const white = { stroke: "#fff", strokeWidth: 2.6, fill: "none", strokeLinecap: "round" as const, strokeLinejoin: "round" as const }
   const blue = { ...white, stroke: "var(--au-glow)" }
+  // nuvem da frente de cada cena (posição/tamanho) e o recorte correspondente para o que fica atrás
+  const front: Partial<Record<Scene, string>> = { partly: "translate(-6 12)", cloudy: "translate(-5 12)", "night-cloudy": "translate(14 26) scale(.72)", wind: "translate(-6 -10)" }
+  const ft = front[scene]
+  const mask = ft ? `url(#m${uid})` : undefined
+  const flake = (x: number, y: number) => <g key={x} transform={`translate(${x} ${y})`}><line x1="-4" y1="0" x2="4" y2="0" /><line x1="-2" y1="-3.5" x2="2" y2="3.5" /><line x1="2" y1="-3.5" x2="-2" y2="3.5" /></g>
   return (
     <svg viewBox="0 0 72 72" width="100%" height="100%">
+      {ft && (
+        <defs>
+          <mask id={"m" + uid} maskUnits="userSpaceOnUse" x="0" y="0" width="72" height="72">
+            <rect width="72" height="72" fill="#fff" />
+            <path d={CLOUD} transform={ft} fill="#000" stroke="#000" strokeWidth="7" strokeLinejoin="round" />
+          </mask>
+        </defs>
+      )}
       {scene === "sun" && (
         <g stroke="#ffc94d" strokeWidth="3" fill="none" strokeLinecap="round" className="waur-sun">
           <circle cx="36" cy="36" r="13" stroke="#fff" />
-          {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => <line key={a} x1="36" y1="10" x2="36" y2="17" transform={`rotate(${a} 36 36)`} />)}
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => <line key={a} x1="36" y1="9" x2="36" y2="16" transform={`rotate(${a} 36 36)`} />)}
         </g>
       )}
       {scene === "partly" && (
         <>
-          <g {...blue} className="waur-sun"><path d="M44 22a10 10 0 0 1 12 12" /><line x1="50" y1="9" x2="50" y2="14" /><line x1="62" y1="16" x2="59" y2="19" /><line x1="66" y1="28" x2="61" y2="28" /><line x1="62" y1="40" x2="59" y2="37" /></g>
-          <path d={CLOUD} {...white} transform="translate(-2 8)" />
+          <g mask={mask}>
+            <g {...blue} className="waur-sun" style={{ transformOrigin: "48px 24px" }}>
+              <circle cx="48" cy="24" r="10" />
+              {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => <line key={a} x1="48" y1="6" x2="48" y2="10" transform={`rotate(${a} 48 24)`} />)}
+            </g>
+          </g>
+          <path d={CLOUD} {...white} transform={ft} />
         </>
       )}
-      {scene === "cloudy" && <><path d={CLOUD} {...white} transform="translate(10 -2) scale(.8)" opacity=".7" /><path d={CLOUD} {...white} transform="translate(-4 8)" /><path d="M18 58h34" {...blue} transform="translate(-4 0)" /></>}
-      {scene === "rain" && <><path d={CLOUD} {...white} /><g {...blue}><line x1="24" y1="56" x2="21" y2="64" /><line x1="34" y1="56" x2="31" y2="64" /><line x1="44" y1="56" x2="41" y2="64" /></g></>}
-      {scene === "storm" && <><path d={CLOUD} {...white} /><path d="M37 46l-6 10h7l-4 9 11-13h-7l4-6Z" fill="var(--au-glow)" stroke="none" /><g {...blue} strokeWidth="2"><line x1="22" y1="56" x2="20" y2="62" /><line x1="50" y1="56" x2="48" y2="62" /></g></>}
-      {scene === "fog" && <><path d={CLOUD} {...white} /><g {...blue} stroke="#a9c6ff"><line x1="16" y1="58" x2="56" y2="58" /><line x1="20" y1="64" x2="52" y2="64" /></g></>}
-      {scene === "wind" && <><path d={CLOUD} {...white} opacity=".85" /><g {...blue}><path d="M14 44h36a6 6 0 1 0-6-6" /><path d="M20 52h30a6 6 0 1 1-6 6" /></g></>}
-      {scene === "snow" && <><path d={CLOUD} {...white} /><g {...white} strokeWidth="2">{[22, 36, 50].map((x, i) => <g key={x} transform={`translate(${x} ${60 + (i === 1 ? 2 : 0)})`}><line x1="-4" y1="0" x2="4" y2="0" /><line x1="-2" y1="-3.5" x2="2" y2="3.5" /><line x1="2" y1="-3.5" x2="-2" y2="3.5" /></g>)}</g></>}
+      {scene === "cloudy" && (
+        <>
+          <g mask={mask}><path d={CLOUD} {...white} stroke="#aebbd3" transform="translate(16 -6) scale(.78)" /></g>
+          <path d={CLOUD} {...white} transform={ft} />
+          <path d="M14 68h34" {...blue} />
+        </>
+      )}
+      {scene === "rain" && <><path d={CLOUD} {...white} /><g {...blue}>{[24, 34, 44].map((x) => <line key={x} x1={x} y1="57" x2={x - 3} y2="65" />)}</g></>}
+      {scene === "storm" && <><path d={CLOUD} {...white} /><path d="M37 54l-5 8h6l-4 8 10-11h-6l3-5Z" fill="var(--au-glow)" stroke="none" /><g {...blue} strokeWidth="2"><line x1="22" y1="57" x2="20" y2="63" /><line x1="52" y1="57" x2="50" y2="63" /></g></>}
+      {scene === "fog" && <><path d={CLOUD} {...white} /><g {...blue} stroke="#a9c6ff"><line x1="16" y1="58" x2="56" y2="58" /><line x1="22" y1="65" x2="50" y2="65" /></g></>}
+      {scene === "wind" && <><path d={CLOUD} {...white} transform={ft} /><g {...blue} mask={mask}><path d="M8 50h50a6 6 0 1 0-6-6" /><path d="M16 60h32a6 6 0 1 1-6 6" /></g></>}
+      {scene === "snow" && <><path d={CLOUD} {...white} /><g {...white} strokeWidth="2">{[flake(22, 60), flake(36, 63), flake(50, 60)]}</g></>}
       {(scene === "night" || scene === "night-cloudy") && (
         <>
-          <path d="M44 14a20 20 0 1 0 14 30A16 16 0 0 1 44 14Z" {...white} stroke="#dbe6ff" style={{ filter: "drop-shadow(0 0 5px var(--au-glow))" }} />
-          <g fill="#fff"><path d="M56 12l1.4 4 4 1.4-4 1.4L56 23l-1.4-4-4-1.4 4-1.4Z" /><circle cx="62" cy="28" r="1.3" /></g>
-          {scene === "night-cloudy" && <path d={CLOUD} {...white} transform="translate(8 14) scale(.75)" />}
+          <g mask={mask}>
+            <path d="M40 12a20 20 0 1 0 14 30A16 16 0 0 1 40 12Z" {...white} stroke="#dbe6ff" style={{ filter: "drop-shadow(0 0 5px var(--au-glow))" }} />
+            <g fill="#fff"><path d="M56 10l1.4 4 4 1.4-4 1.4L56 21l-1.4-4-4-1.4 4-1.4Z" /><circle cx="63" cy="27" r="1.3" /></g>
+          </g>
+          {scene === "night-cloudy" && <path d={CLOUD} {...white} transform={ft} />}
         </>
       )}
     </svg>

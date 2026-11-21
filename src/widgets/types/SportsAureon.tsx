@@ -114,6 +114,8 @@ function useVlr(m: Match | null, sport: Sport) {
 
 function LiveView({ sport, m, agent, wide }: { sport: Sport; m: Match; agent: string; wide: boolean }) {
   const vlr = useVlr(m, sport)
+  // a arte do agente só em cartões largos, num espaço só dela à direita (nunca por cima dos times)
+  const art = sport === "valorant" && agent !== "none" && wide
   const live = m.state === "live"
   const info = live ? liveInfo(m) : null
   const map = vlr && live ? vlr.maps[vlr.current] : null
@@ -123,10 +125,10 @@ function LiveView({ sport, m, agent, wide }: { sport: Sport; m: Match; agent: st
     : m.state === "done" ? (m.detail && m.detail !== "Encerrado" ? m.detail : "Encerrado") : when(m.start) + (m.detail && sport !== "football" ? " · " + m.detail : "")
   return (
     <>
-      {sport === "valorant" && agent !== "none" && <AgentArt name={agent} />}
+      {art && <AgentArt name={agent} />}
       <Head sport={sport} title={sport === "football" ? "Futebol" : SPORT_NAME[sport]} sub={(m.league && LEAGUE_NAME[m.league]) || m.event}
         right={live ? <span className="au-live">Ao vivo</span> : m.state === "done" ? <span className="au-chip">Encerrado</span> : null} />
-      <div className="spa-score" data-wide={wide}>
+      <div className="spa-score" data-wide={wide} data-art={art}>
         <div className="spa-team"><Crest t={a} size={wide ? 76 : 58} /><span className="spa-short">{a.short || a.name}</span></div>
         <div className="spa-mid">
           <div className="au-score spa-big">{m.state === "upcoming" ? "×" : `${m.a.score ?? 0} – ${m.b.score ?? 0}`}</div>

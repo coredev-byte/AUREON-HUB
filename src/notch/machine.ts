@@ -43,8 +43,9 @@ export type NotchEvent =
   | { type: "ctx"; ctx: Partial<Ctx> }
 
 export const NOTICE_MS = 4500
-export const COLLAPSE_MS = 450
-export const PINNED_COLLAPSE_MS = 1600
+/** tirou o mouse do notch aberto: fecha na hora (a faixa de tolerância em volta do desenho evita fechar por engano) */
+export const COLLAPSE_MS = 0
+export const PINNED_COLLAPSE_MS = 0
 
 export const initialCtx: Ctx = { sharing: false, mediaPlaying: false, showMedia: true, hoverExpand: true, hoverDelay: 140, fullscreen: false, notifications: true }
 export const initial = (ctx: Partial<Ctx> = {}): NotchState => {
@@ -101,7 +102,10 @@ export function reduce(s: NotchState, e: NotchEvent): NotchState {
     case "leave": {
       const n = { ...s, pointer: false }
       if (s.mode === "hover") return { ...n, mode: base(s.ctx), timer: null }
-      if (s.mode === "expanded") return { ...n, timer: arm("collapse", s.pinned ? PINNED_COLLAPSE_MS : COLLAPSE_MS) }
+      if (s.mode === "expanded") {
+        const ms = s.pinned ? PINNED_COLLAPSE_MS : COLLAPSE_MS
+        return ms > 0 ? { ...n, timer: arm("collapse", ms) } : next({ ...n, pinned: false })
+      }
       if (s.mode === "notification" && s.notice && !(s.notice.sticky || s.notice.actions.length)) return { ...n, timer: arm("notice-done", 1800) }
       return n
     }

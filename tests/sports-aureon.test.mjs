@@ -57,3 +57,12 @@ test("clima: cena e texto pelo código WMO, noite e vento", () => {
   assert.equal(sceneOf(1, true, 50).scene, "wind", "vento forte sem chuva vira 'Ventando'")
   assert.equal(sceneOf(63, true, 50).scene, "rain", "chuva tem prioridade sobre vento")
 })
+
+test("ESPN: 2º tempo não é confundido com intervalo", () => {
+  const { parseEspn } = require("../electron/integrations/widgy/sports.cjs")
+  const ev = (name, short, clock) => ({ events: [{ id: "1", date: "2026-11-21T12:00Z", status: { displayClock: clock, period: 2, type: { state: "in", name, shortDetail: short } },
+    competitions: [{ competitors: [{ homeAway: "home", team: { abbreviation: "A", shortDisplayName: "A" }, score: "1" }, { homeAway: "away", team: { abbreviation: "B", shortDisplayName: "B" }, score: "0" }] }] }] })
+  assert.equal(parseEspn(ev("STATUS_SECOND_HALF", "81'", "81'"), "x")[0].detail, "81'")
+  assert.equal(parseEspn(ev("STATUS_FIRST_HALF", "30'", "30'"), "x")[0].detail, "30'")
+  assert.equal(parseEspn(ev("STATUS_HALFTIME", "HT", "45'"), "x")[0].detail, "Intervalo")
+})
