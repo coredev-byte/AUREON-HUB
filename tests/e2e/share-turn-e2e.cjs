@@ -48,18 +48,19 @@ async function main() {
       return p
     }
     const host = await open(), viewer = await open()
+    await host.getByLabel("Nome da nova sala").fill("teste-turn")
+    await host.getByLabel("Senha da nova sala").fill("senha123")
     await host.getByRole("button", { name: "Criar sala" }).click()
-    const codeEl = host.locator('[aria-label="Código da sala"]').first()
-    await codeEl.waitFor({ timeout: 15000 })
-    const code = (await codeEl.innerText()).trim()
-    await viewer.getByLabel("Código da sala").fill(code)
+    await host.getByLabel("Nome da sala", { exact: true }).waitFor({ timeout: 15000 })
+    await viewer.getByLabel("Nome da sala", { exact: true }).fill("teste-turn")
+    await viewer.getByLabel("Senha da sala", { exact: true }).fill("senha123")
     await viewer.getByRole("button", { name: "Entrar", exact: true }).click()
     await viewer.getByText("Na sala (2)").waitFor({ timeout: 15000 })
     await host.getByRole("button", { name: "Transmitir minha tela" }).first().click()
     await host.getByRole("button", { name: /Tela inteira/ }).first().click()
     await host.getByRole("button", { name: "Começar a transmitir" }).click()
     await viewer.getByRole("button", { name: "Assistir", exact: true }).first().click()
-    await viewer.waitForFunction(() => { const v = document.querySelector(".au-tile video"); return v && v.videoWidth > 0 && v.currentTime > 0.3 }, null, { timeout: 25000 })
+    await viewer.waitForFunction(() => { const v = document.querySelector(".dc-tile video"); return v && v.videoWidth > 0 && v.currentTime > 0.3 }, null, { timeout: 25000 })
     const pair = await viewer.evaluate(async () => {
       const pc = window.__pcs[window.__pcs.length - 1]
       const r = []; (await pc.getStats()).forEach((x) => r.push(x))
@@ -68,9 +69,9 @@ async function main() {
       return { local: loc?.candidateType, remote: rem?.candidateType }
     })
     ok(pair.local === "relay" || pair.remote === "relay", `vídeo chegou pela retransmissão TURN (candidatos: ${pair.local} ↔ ${pair.remote})`)
-    const f1 = await viewer.evaluate(() => document.querySelector(".au-tile video").getVideoPlaybackQuality().totalVideoFrames)
+    const f1 = await viewer.evaluate(() => document.querySelector(".dc-tile video").getVideoPlaybackQuality().totalVideoFrames)
     await sleep(2000)
-    const f2 = await viewer.evaluate(() => document.querySelector(".au-tile video").getVideoPlaybackQuality().totalVideoFrames)
+    const f2 = await viewer.evaluate(() => document.querySelector(".dc-tile video").getVideoPlaybackQuality().totalVideoFrames)
     ok(f2 - f1 > 20, `quadros contínuos pelo TURN (~${Math.round((f2 - f1) / 2)} fps)`)
     ok(/session|allocation|ALLOCATE/i.test(turnLog), "coturn registrou a alocação (credencial temporária aceita)")
     await host.getByRole("button", { name: "Encerrar sala" }).click()

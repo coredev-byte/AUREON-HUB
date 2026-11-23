@@ -286,7 +286,7 @@ function ShareTab({ share }: { share: SharePublic }) {
       <div className="n-card col" style={{ height: "100%", justifyContent: "center", alignItems: "center", gap: 10, textAlign: "center" }}>
         <MonitorUp size={26} color="var(--sh-muted)" />
         <div style={{ fontWeight: 600 }}>Fora de uma sala</div>
-        <div style={{ color: "var(--sh-muted)", fontSize: 12, maxWidth: 400 }}>Crie uma sala e mande o código curto: todo mundo pode transmitir a própria tela e cada um escolhe o que assistir. Nada começa sem você escolher a tela.</div>
+        <div style={{ color: "var(--sh-muted)", fontSize: 12, maxWidth: 400 }}>Crie uma sala com nome e senha e mande para os amigos: todo mundo pode transmitir a própria tela e cada um escolhe o que assistir. Nada começa sem você escolher a tela.</div>
         <div className="row"><button type="button" className="n-btn n-btn-primary" onClick={() => void invoke("app:open", "share")}>Criar ou entrar numa sala</button></div>
       </div>
     )
@@ -318,9 +318,9 @@ function ShareTab({ share }: { share: SharePublic }) {
         </div>
       </div>
       <div className="n-card col" style={{ gap: 6 }}>
-        <div style={{ fontSize: 11, color: "var(--sh-muted)" }}>Código da sala</div>
-        <div className="num" style={{ fontSize: 22, letterSpacing: "0.12em" }}>{share.code || "—"}</div>
-        <div style={{ fontSize: 11, color: "var(--sh-muted)", marginTop: "auto" }}>{share.requests ? `${share.requests} pedido(s) para entrar: responda no aviso ou na sala.` : share.owner ? "Quem tiver o código pede para entrar e você aprova." : "Peça para quem cuida da sala aprovar seus amigos."}</div>
+        <div style={{ fontSize: 11, color: "var(--sh-muted)" }}>Sala</div>
+        <div className="truncate" style={{ fontSize: 19, fontWeight: 600 }}>{share.code || "—"}</div>
+        <div style={{ fontSize: 11, color: "var(--sh-muted)", marginTop: "auto" }}>{share.requests ? `${share.requests} pedido(s) para entrar: responda no aviso ou na sala.` : share.owner ? "Quem tiver o nome e a senha pede para entrar e você aprova." : "Peça para quem cuida da sala aprovar seus amigos."}</div>
       </div>
     </div>
   )

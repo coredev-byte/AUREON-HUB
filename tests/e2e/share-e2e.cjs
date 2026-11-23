@@ -83,8 +83,9 @@ async function main() {
       await p.getByRole("button", { name: "Começar a transmitir" }).click()
       await p.getByRole("button", { name: "Parar", exact: true }).waitFor({ timeout: 10000 })
     }
-    const enter = async (p, code, owner, name) => {
-      await p.getByLabel("Código da sala").fill(code)
+    const enter = async (p, room, pw, owner, name) => {
+      await p.getByLabel("Nome da sala", { exact: true }).fill(room)
+      await p.getByLabel("Senha da sala", { exact: true }).fill(pw)
       await p.getByRole("button", { name: "Entrar", exact: true }).click()
       await owner.getByText(name).first().waitFor({ timeout: 10000 })
       await owner.getByRole("button", { name: "Aceitar" }).first().click()
@@ -93,29 +94,33 @@ async function main() {
 
     const ana = await open("Ana"), bia = await open("Bia"), caio = await open("Caio"), intruso = await open("Intruso")
 
-    // 1) criar sala: código curto
+    // 1) criar sala com nome e senha escolhidos
+    const ROOM = "jogatina-" + Date.now().toString(36).slice(-4), PW = "pipoca123"
+    await ana.getByLabel("Nome da nova sala").fill("Jogatina " + ROOM.slice(9))
+    await ana.getByLabel("Senha da nova sala").fill(PW)
     await ana.getByRole("button", { name: "Criar sala" }).click()
-    const codeEl = ana.locator('[aria-label="Código da sala"]').first()
-    await codeEl.waitFor({ timeout: 15000 })
-    const code = (await codeEl.innerText()).trim()
-    ok(/^[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(code), "sala criada com código curto " + code)
+    await ana.getByLabel("Nome da sala", { exact: true }).waitFor({ timeout: 15000 })
+    const shown = (await ana.getByLabel("Nome da sala", { exact: true }).innerText()).trim()
+    ok(shown === ROOM, "sala criada com o nome escolhido: " + shown)
 
-    // 2) código errado e entrada recusada
-    await intruso.getByLabel("Código da sala").fill(code.slice(0, -1) + (code.endsWith("Z") ? "Y" : "Z"))
+    // 2) senha errada e entrada recusada
+    await intruso.getByLabel("Nome da sala", { exact: true }).fill(ROOM)
+    await intruso.getByLabel("Senha da sala", { exact: true }).fill("pipoca124")
     await intruso.getByRole("button", { name: "Entrar", exact: true }).click()
-    await intruso.getByText("Código inválido").waitFor({ timeout: 10000 })
-    ok(true, "código errado recusado pelo servidor")
-    await intruso.getByLabel("Código da sala").fill(code.toLowerCase().replace("-", ""))
+    await intruso.getByText("Sala ou senha incorreta").waitFor({ timeout: 10000 })
+    ok(true, "senha errada recusada pelo servidor")
+    await intruso.getByLabel("Nome da sala", { exact: true }).fill(ROOM.toUpperCase())
+    await intruso.getByLabel("Senha da sala", { exact: true }).fill(PW)
     await intruso.getByRole("button", { name: "Entrar", exact: true }).click()
     await intruso.getByText("Esperando aprovação").waitFor({ timeout: 10000 })
     await ana.getByText("Intruso").first().waitFor({ timeout: 10000 })
     await ana.getByRole("button", { name: "Recusar" }).first().click()
     await intruso.getByText("recusou sua entrada").waitFor({ timeout: 10000 })
-    ok(true, "dono recusou o pedido (código digitado em minúsculas e sem traço também vale)")
+    ok(true, "dono recusou o pedido (o nome da sala vale com maiúsculas também)")
 
     // 3) Bia e Caio entram
-    await enter(bia, code, ana, "Bia")
-    await enter(caio, code, ana, "Caio")
+    await enter(bia, ROOM, PW, ana, "Bia")
+    await enter(caio, ROOM, PW, ana, "Caio")
     await ana.getByText("Na sala (3)").waitFor({ timeout: 10000 })
     ok(true, "três pessoas na mesma sala")
 
@@ -156,7 +161,7 @@ async function main() {
 
     // 6) estatísticas e troca de tela sem derrubar ninguém
     await sleep(2500)
-    ok(/Mbit\/s/.test(await ana.locator(".au-card").filter({ hasText: "Ao vivo" }).first().innerText()), "estatísticas de envio aparecem")
+    ok(/Mbit\/s/.test(await ana.locator(".dc-live-info").first().innerText()), "estatísticas de envio aparecem")
     await ana.evaluate(() => { window.__screen = 2 })
     await ana.getByRole("button", { name: "Trocar tela" }).click()
     await ana.getByRole("button", { name: /Tela inteira/ }).first().click()
@@ -166,6 +171,7 @@ async function main() {
     ok(await ana.evaluate(() => window.__streams[0].getTracks().every((t) => t.readyState === "ended")), "trilhas da tela antiga paradas")
 
     // 7) qualidade
+    await ana.getByRole("button", { name: "Qualidade da transmissão" }).click()
     await ana.getByRole("group", { name: "Qualidade" }).getByRole("button", { name: "Econômico" }).click()
     const f3 = await framesOf(caio, "Ana"); await sleep(1500); const f4 = await framesOf(caio, "Ana")
     ok(f4 - f3 > 10, "trocar a qualidade não interrompe o vídeo")

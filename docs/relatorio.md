@@ -1,8 +1,38 @@
-# Relatório da reconstrução: Widgy → Aureon Hub 0.6.0
+# Relatório da reconstrução: Widgy → Aureon Hub 0.7.0
 
 
 
 
+
+
+## 0.7.0 (pedido do usuário: visual do Discord na transmissão e senha no lugar do código)
+
+- **Sala com nome e senha:**
+  - Quem cria escolhe o nome da sala (ex.: `jogatina-de-sexta`) e uma senha (4 a 64 caracteres); quem entra digita os dois. O botão "Convidar" copia uma mensagem pronta com nome e senha.
+  - O dono pode trocar a senha durante a sala, sem tirar ninguém.
+  - O servidor guarda só um hash **scrypt** com sal (nunca a senha) e compara em tempo constante. Mesmo uma sala inexistente custa o mesmo cálculo, para não revelar quais salas existem.
+  - Continuam valendo o limite de tentativas por IP, a trava da sala depois de muitos erros e a aprovação de cada pessoa.
+  - Nome repetido enquanto a sala existe é recusado.
+  - **Servidor 2.1:** apps 0.5–0.6 ainda criam e entram em salas de código no mesmo servidor.
+- **Transmissão no estilo de canal de voz do Discord** (paleta, layout e comportamento parecidos; sem marca ou logotipo do Discord):
+  - Cabeçalho com o nome da sala, conexão, pessoas, quantos estão ao vivo e "Convidar".
+  - Palco com um bloco 16:9 por pessoa:
+    - a tela, para quem você assiste;
+    - a prévia "está transmitindo" com o botão **Assistir transmissão**, para quem está ao vivo e você ainda não abriu;
+    - o avatar, para quem só está na sala.
+  - Selo vermelho **AO VIVO** e nome no canto de cada bloco, além de resolução, quadros por segundo e qualidade da conexão.
+  - Clique duplo (ou o botão) foca um bloco e deixa os outros numa faixa embaixo.
+  - Barra de controles redonda embaixo:
+    - Transmitir (verde);
+    - Parar, Trocar tela e Qualidade (menu com qualidade e resolução);
+    - Sair (vermelho).
+  - Lista de pessoas à direita, com AO VIVO, coroa do dono, assistir e remover. Embaixo, "Acesso": nome, senha escondida com olho, copiar convite, trocar senha, aprovar, trancar e encerrar.
+  - Escolha da tela numa janela central com abas Telas/Janelas e as opções de qualidade, resolução e som embaixo.
+  - Nenhuma regra da transmissão mudou: as mesmas ações, só reorganizadas.
+- **Testes:**
+  - servidor: 20 testes, entre eles nome normalizado, senha só em hash, senha errada, nome repetido, troca de senha e força bruta na senha;
+  - ponta a ponta com nome e senha (28 verificações) e pelo TURN;
+  - todas as páginas sem erros de console e sem rolagem lateral em 1024, 768 e 390 px.
 
 ## 0.6.0 (pedido do usuário: widget de música igual à aba Mídia, variedade transparente e revisão completa de UI/UX e fluidez)
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
-  AppWindow, Check, Clipboard, Crown, Eye, EyeOff, Lock, LockOpen, LogIn, LogOut, Maximize, Monitor, MonitorUp, Plus, RefreshCw, Repeat,
-  ShieldCheck, Square, Stethoscope, UserX, Users, Volume2, VolumeX, X,
+  AppWindow, Check, Clipboard, Crown, Eye, EyeOff, KeyRound, Lock, LockOpen, LogIn, Maximize, Minimize, Monitor, MonitorOff, MonitorUp, PhoneOff, Plus,
+  RefreshCw, Repeat, Settings2, ShieldCheck, Stethoscope, UserPlus, UserX, Users, Volume2, VolumeX, X,
 } from "lucide-react"
 import { invoke, isElectron } from "@/shared/bridge"
 import { fmtTime, useNow } from "@/shared/hooks"
@@ -15,6 +15,7 @@ import type { Member, Watch } from "@/share/room"
 import { PROFILES, RESOLUTIONS, type QualityId, type ResolutionId } from "@/share/quality"
 import { diagnose, report, type DiagResult } from "@/share/diag"
 import { useNav } from "../nav"
+import "./share-dc.css"
 
 type Tab = "room" | "server"
 const QUALITIES: QualityId[] = ["auto", "eco", "balanced", "quality"]
@@ -27,12 +28,13 @@ function ResolutionPick({ value, onChange }: { value: ResolutionId; onChange: (r
     </label>
   )
 }
-/** "abcd efgh" -> "ABCD-EFGH" enquanto digita */
-export const tidyCode = (v: string) => { const s = v.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 8); return s.length > 4 ? s.slice(0, 4) + "-" + s.slice(4) : s }
+/** nome da sala enquanto digita: minúsculas, sem acento, hífen no lugar de espaço */
+export const tidyRoom = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[\s_]+/g, "-").replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-").slice(0, 24)
 const hue = (s: string) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h }
-const Avatar = ({ name, live }: { name: string; live?: boolean }) => (
-  <span className="au-avatar" data-live={!!live} style={{ background: `linear-gradient(140deg, hsl(${hue(name)} 60% 46%), hsl(${(hue(name) + 40) % 360} 55% 30%))` }}>{(name.trim()[0] || "?").toUpperCase()}</span>
+const Avatar = ({ name, size = 32, live }: { name: string; size?: number; live?: boolean }) => (
+  <span className="dc-avatar" data-live={!!live} style={{ width: size, height: size, fontSize: size * 0.42, background: `hsl(${hue(name)} 45% 42%)` }}>{(name.trim()[0] || "?").toUpperCase()}</span>
 )
+const invite = (room: string, pw: string) => `Entra na minha sala do Aureon Hub!\nSala: ${room}\nSenha: ${pw}\n(ou abra aureon://join/${room} e digite a senha)`
 
 export default function Share() {
   const params = useNav((s) => s.params)
@@ -40,8 +42,8 @@ export default function Share() {
   useEffect(() => { if (params.tab === "server") setTab("server"); else if (params.join || params.pick) setTab("room") }, [params])
   const configured = !!signalUrl()
   return (
-    <div className="page">
-      <PageHead title="Transmissão" desc="Uma sala privada como um canal de voz: todo mundo pode transmitir a própria tela e cada um escolhe o que assistir." />
+    <div className="page dc-page">
+      <PageHead title="Transmissão" desc="Uma sala como um canal de voz: todo mundo pode transmitir a própria tela e cada um escolhe o que assistir." />
       <Tabs label="Transmissão" value={tab} onChange={setTab} tabs={[{ id: "room", label: "Sala" }, { id: "server", label: "Servidor e conexão" }]} />
       {!configured && tab !== "server" && (
         <div className="callout callout-warn" style={{ marginBottom: 14 }}>
@@ -55,195 +57,215 @@ export default function Share() {
   )
 }
 
-/* ───────────── fora da sala: criar ou entrar ───────────── */
+/* ───────────── fora da sala: criar ou entrar (nome + senha) ───────────── */
 function RoomView({ join, pick }: { join: string; pick: boolean }) {
   const r = useShare((s) => s.room)
   if (r.phase === "in-room") return <InRoom pick={pick} />
   if (r.phase === "waiting" || r.phase === "connecting") {
     return (
-      <div className="au-card col" style={{ alignItems: "center", textAlign: "center", padding: 44, gap: 10 }}>
-        <Users size={26} className="au-muted" />
-        <div className="h2">{r.phase === "waiting" ? "Esperando aprovação" : "Conectando…"}</div>
-        <div className="small au-muted">{r.phase === "waiting" ? "Quem cuida da sala precisa aceitar sua entrada." : "Falando com o servidor de transmissão."}</div>
-        <button type="button" className="au-btn" onClick={leaveRoom}>Cancelar</button>
+      <div className="dc dc-center">
+        <div className="dc-spinner" aria-hidden />
+        <div className="dc-title">{r.phase === "waiting" ? "Esperando aprovação" : "Conectando…"}</div>
+        <div className="dc-muted">{r.phase === "waiting" ? "Quem cuida da sala precisa aceitar sua entrada." : "Falando com o servidor de transmissão."}</div>
+        <button type="button" className="dc-btn" onClick={leaveRoom}>Cancelar</button>
       </div>
     )
   }
-  return <Lobby initialCode={join} />
+  return <Lobby initialRoom={join} />
 }
 
-function Lobby({ initialCode }: { initialCode: string }) {
+function PasswordField({ value, onChange, label, placeholder, onEnter }: { value: string; onChange: (v: string) => void; label: string; placeholder: string; onEnter?: () => void }) {
+  const [show, setShow] = useState(false)
+  return (
+    <div className="dc-input-wrap">
+      <KeyRound size={15} className="dc-input-ico" />
+      <input className="dc-input" type={show ? "text" : "password"} value={value} maxLength={64} placeholder={placeholder} aria-label={label} autoComplete="new-password"
+        onChange={(e) => onChange(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onEnter?.() }} />
+      <button type="button" className="dc-input-btn" aria-label={show ? "Esconder senha" : "Mostrar senha"} onClick={() => setShow(!show)}>{show ? <EyeOff size={15} /> : <Eye size={15} />}</button>
+    </div>
+  )
+}
+
+function Lobby({ initialRoom }: { initialRoom: string }) {
   const r = useShare((s) => s.room)
   const prefs = useSection("share")
-  const [code, setCode] = useState(tidyCode(initialCode))
+  const [newRoom, setNewRoom] = useState("")
+  const [newPw, setNewPw] = useState("")
+  const [room, setRoom] = useState(tidyRoom(initialRoom))
+  const [pw, setPw] = useState("")
   const [busy, setBusy] = useState<"" | "create" | "join">("")
   const [err, setErr] = useState("")
-  useEffect(() => { if (initialCode) setCode(tidyCode(initialCode)) }, [initialCode])
+  useEffect(() => { if (initialRoom) setRoom(tidyRoom(initialRoom)) }, [initialRoom])
   if (!prefs) return null
   const name = prefs.name
   const run = async (what: "create" | "join") => {
     setBusy(what); setErr("")
-    try { if (what === "create") await createRoom(name.trim() || "Anfitrião"); else await joinRoom(code, name.trim() || "Convidado") }
-    catch (e: any) { setErr(e?.message || String(e)) }
+    try {
+      if (what === "create") await createRoom(newRoom, newPw, name.trim() || "Anfitrião")
+      else await joinRoom(room, pw, name.trim() || "Convidado")
+    } catch (e: any) { setErr(e?.message || String(e)) }
     finally { setBusy("") }
   }
-  const ok = code.replace("-", "").length === 8
+  const canCreate = newRoom.length >= 3 && newPw.length >= 4
+  const canJoin = room.length >= 3 && pw.length >= 1
   return (
-    <div className="col" style={{ gap: 14 }}>
-      {(err || r.phase === "error" || r.phase === "ended") && <div className={"callout " + (r.phase === "ended" ? "" : "callout-bad")}>{err || r.error}</div>}
-      <div className="au-card" style={{ padding: 22 }}>
-        <div className="row" style={{ gap: 10, marginBottom: 16 }}>
-          <span className="au-muted small">Seu nome na sala</span>
-          <input className="au-field" style={{ height: 36, width: 220 }} value={name} maxLength={40} placeholder="Como os outros te veem" aria-label="Seu nome" onChange={(e) => void patch("share", { name: e.target.value })} />
+    <div className="dc dc-lobby">
+      {(err || r.phase === "error" || r.phase === "ended") && <div className={"dc-alert" + (r.phase === "ended" && !err ? "" : " dc-alert-bad")}>{err || r.error}</div>}
+      <label className="dc-field">
+        <span className="dc-label">Seu nome na sala</span>
+        <input className="dc-input" value={name} maxLength={40} placeholder="Como os outros te veem" aria-label="Seu nome" onChange={(e) => void patch("share", { name: e.target.value })} />
+      </label>
+      <div className="dc-lobby-grid">
+        <div className="dc-box">
+          <div className="dc-box-head"><span className="dc-box-ico"><Plus size={18} /></span><div><div className="dc-title">Criar sala</div><div className="dc-muted">Escolha um nome e uma senha e mande para os amigos.</div></div></div>
+          <label className="dc-field"><span className="dc-label">Nome da sala</span>
+            <input className="dc-input" value={newRoom} placeholder="ex.: jogatina-de-sexta" aria-label="Nome da nova sala" onChange={(e) => setNewRoom(tidyRoom(e.target.value))} />
+          </label>
+          <label className="dc-field"><span className="dc-label">Senha <span className="dc-dim">(mínimo 4 caracteres)</span></span>
+            <PasswordField value={newPw} onChange={setNewPw} label="Senha da nova sala" placeholder="Crie uma senha" onEnter={() => canCreate && void run("create")} />
+          </label>
+          <label className="dc-check"><Switch label="Aprovar quem entra" checked={prefs.approval} onChange={(v) => void patch("share", { approval: v })} />Aprovar cada pessoa que entrar <span className="dc-dim">(recomendado)</span></label>
+          <button type="button" className="dc-btn dc-btn-primary" disabled={!canCreate || !!busy || !signalUrl()} onClick={() => void run("create")}><Plus size={16} />{busy === "create" ? "Criando…" : "Criar sala"}</button>
         </div>
-        <div className="grid-2" style={{ gap: 14 }}>
-          <div className="au-card au-flat col" style={{ padding: 18, gap: 12 }}>
-            <div className="row" style={{ gap: 10 }}><span className="au-pill" style={{ paddingRight: 4 }}><span className="au-ico"><Plus size={14} /></span></span><div><div className="h2">Criar sala</div><div className="small au-muted">Você recebe um código curto para mandar aos amigos.</div></div></div>
-            <label className="row small" style={{ gap: 10 }}><Switch label="Aprovar quem entra" checked={prefs.approval} onChange={(v) => void patch("share", { approval: v })} /><span>Aprovar quem entra <span className="au-dim">(recomendado)</span></span></label>
-            <button type="button" className="au-btn au-btn-primary" style={{ marginTop: "auto" }} disabled={!!busy || !signalUrl()} onClick={() => void run("create")}><Plus size={15} />{busy === "create" ? "Criando…" : "Criar sala"}</button>
-          </div>
-          <div className="au-card au-flat col" style={{ padding: 18, gap: 12 }}>
-            <div className="row" style={{ gap: 10 }}><span className="au-pill" style={{ paddingRight: 4 }}><span className="au-ico"><LogIn size={14} /></span></span><div><div className="h2">Entrar com código</div><div className="small au-muted">Ou abra o link aureon://join/… que você recebeu.</div></div></div>
-            <input className="au-field au-code" placeholder="XXXX-XXXX" value={code} aria-label="Código da sala" onChange={(e) => setCode(tidyCode(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter" && ok) void run("join") }} />
-            <button type="button" className="au-btn au-btn-primary" disabled={!ok || !!busy || !signalUrl()} onClick={() => void run("join")}><LogIn size={15} />{busy === "join" ? "Entrando…" : "Entrar"}</button>
-          </div>
+        <div className="dc-box">
+          <div className="dc-box-head"><span className="dc-box-ico"><LogIn size={18} /></span><div><div className="dc-title">Entrar numa sala</div><div className="dc-muted">Digite o nome da sala e a senha que você recebeu.</div></div></div>
+          <label className="dc-field"><span className="dc-label">Nome da sala</span>
+            <input className="dc-input" value={room} placeholder="nome-da-sala" aria-label="Nome da sala" onChange={(e) => setRoom(tidyRoom(e.target.value))} />
+          </label>
+          <label className="dc-field"><span className="dc-label">Senha</span>
+            <PasswordField value={pw} onChange={setPw} label="Senha da sala" placeholder="Senha da sala" onEnter={() => canJoin && void run("join")} />
+          </label>
+          <span className="grow" />
+          <button type="button" className="dc-btn dc-btn-primary" disabled={!canJoin || !!busy || !signalUrl()} onClick={() => void run("join")}><LogIn size={16} />{busy === "join" ? "Entrando…" : "Entrar"}</button>
         </div>
       </div>
-      <div className="row small au-muted" style={{ gap: 10, padding: "0 4px" }}>
-        <ShieldCheck size={16} />
-        <span>A tela vai criptografada direto entre os PCs. Ninguém transmite sem escolher a própria tela, nada é gravado e ninguém controla o PC de ninguém.</span>
-      </div>
+      <div className="dc-note"><ShieldCheck size={15} />A tela vai criptografada direto entre os PCs. Ninguém transmite sem escolher a própria tela, nada é gravado e ninguém controla o PC de ninguém. O servidor guarda só um resumo da senha, nunca a senha.</div>
     </div>
   )
 }
 
 /* ───────────── dentro da sala ───────────── */
+type TileKind = { peer: string; kind: "me" | "video" | "preview" | "avatar" }
 function InRoom({ pick }: { pick: boolean }) {
   const r = useShare((s) => s.room)
   const [picking, setPicking] = useState(false)
+  const [focus, setFocus] = useState<string | null>(null)
   useEffect(() => { if (pick && r.share.phase !== "off") setPicking(true) }, [pick])
-  const others = r.members.filter((m) => m.peer !== r.me)
-  const liveOthers = others.filter((m) => m.live)
   const sharing = r.share.phase !== "off"
-  const tiles = r.watching.length + (sharing ? 1 : 0)
-  return (
-    <div className="col cr" style={{ gap: 14 }}>
-    <StatusStrip />
-    <div className="split" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 14, alignItems: "start" }}>
-      <div className="col" style={{ gap: 14, minWidth: 0 }}>
-        {r.signal !== "online" && <div className="callout callout-warn">{r.signal === "reconnecting" ? "Reconectando ao servidor… as telas abertas continuam." : "Sem servidor: as telas abertas continuam, mas ninguém novo entra."}</div>}
-        {(picking || r.share.phase === "source-lost") && (
-          <SourcePanel
-            title={r.share.phase === "source-lost" ? "A tela fechou: escolha outra" : sharing ? "Trocar a tela" : "O que você quer transmitir?"}
-            onClose={() => setPicking(false)} live={sharing}
-            onPick={async (s, audio, quality, resolution) => {
-              if (sharing) await switchSource(s.id, s.name, s.kind)
-              else await startSharing({ sourceId: s.id, sourceName: s.name, sourceKind: s.kind, audio, quality, resolution })
-              setPicking(false)
-            }} />
-        )}
-        {tiles > 0 ? (
-          <div className="au-stage" data-n={Math.min(6, tiles)}>
-            {sharing && <MyTile />}
-            {r.watching.map((w) => <StreamTile key={w.peer} w={w} member={r.members.find((m) => m.peer === w.peer)} solo={tiles === 1} />)}
-          </div>
-        ) : (
-          <div className="au-card col" style={{ alignItems: "center", justifyContent: "center", textAlign: "center", minHeight: 260, gap: 12, padding: 24 }}>
-            <MonitorUp size={28} className="au-muted" />
-            <div className="h2">{liveOthers.length ? "Escolha uma tela para assistir" : "Ninguém está transmitindo"}</div>
-            <div className="small au-muted" style={{ maxWidth: 420 }}>{liveOthers.length ? "Quem está ao vivo aparece abaixo e na lista ao lado. Dá para assistir várias telas ao mesmo tempo." : "Transmita a sua tela ou espere alguém começar. Você recebe um aviso quando isso acontecer."}</div>
-            {liveOthers.length > 0 && (
-              <div className="row" style={{ flexWrap: "wrap", justifyContent: "center", gap: 8 }}>
-                {liveOthers.map((m) => <button key={m.peer} type="button" className="au-btn" onClick={() => watchPeer(m.peer)}><Eye size={14} />Assistir {m.name}</button>)}
-              </div>
-            )}
-          </div>
-        )}
-        <ShareBar onPick={() => setPicking(true)} picking={picking} />
-      </div>
-      <Sidebar />
-    </div>
-    </div>
-  )
-}
-
-const GRADE: Record<string, { t: string; c: string }> = { good: { t: "boa", c: "var(--ok)" }, fair: { t: "razoável", c: "var(--warn)" }, poor: { t: "fraca", c: "var(--bad)" } }
-/** faixa de status da sala (só leitura): sinal, pessoas, quem transmite, você no ar e qualidade */
-function StatusStrip() {
-  const r = useShare((s) => s.room)
-  const grade = useShare((s) => s.grade)
-  const now = useNow(1000)
-  const sig = r.signal === "online" ? { t: "Conectado", c: "var(--ok)" } : r.signal === "reconnecting" ? { t: "Reconectando", c: "var(--warn)" } : { t: "Sem servidor", c: "var(--bad)" }
-  const on = r.share.phase !== "off"
-  const cells: { k: string; v: React.ReactNode; dot?: string; pulse?: boolean }[] = [
-    { k: "Sala", v: <span className="num" style={{ letterSpacing: "0.1em" }}>{r.code || "—"}</span> },
-    { k: "Servidor", v: sig.t, dot: sig.c, pulse: r.signal === "reconnecting" },
-    { k: "Na sala", v: r.members.length },
-    { k: "Transmitindo", v: r.members.filter((m) => m.live).length },
-    { k: "Você", v: on ? <span className="num">{fmtTime((now.getTime() - r.share.startedAt) / 1000)}</span> : "fora do ar", dot: on ? "var(--live)" : "var(--dim)", pulse: on },
-    { k: "Conexão", v: r.watching.length || r.share.viewers.length ? GRADE[grade].t : "—", dot: r.watching.length || r.share.viewers.length ? GRADE[grade].c : undefined },
-  ]
-  return (
-    <div className="cr-strip au-card au-flat" role="status" aria-label="Status da sala">
-      {cells.map((c) => (
-        <div key={c.k} className="cr-cell">
-          <span className="cr-k">{c.k}</span>
-          <span className="cr-v">{c.dot && <i className={"cr-dot" + (c.pulse ? " cr-pulse" : "")} style={{ background: c.dot }} />}{c.v}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/** minha transmissão: começar, trocar, qualidade, parar */
-function ShareBar({ onPick, picking }: { onPick: () => void; picking: boolean }) {
-  const r = useShare((s) => s.room)
-  const now = useNow(1000)
-  const sh = r.share
-  if (sh.phase === "off") {
-    return (
-      <div className="au-card cr-console cr-off">
-        <div className="cr-onair"><span className="cr-lamp" aria-hidden />Fora do ar</div>
-        <div className="grow small au-muted" style={{ minWidth: 200 }}>{sh.error ? <span style={{ color: "var(--bad)" }}>{sh.error}</span> : "Mostre a sua tela para a sala. Cada pessoa decide se quer assistir."}</div>
-        <button type="button" className="au-btn au-btn-primary" disabled={picking} onClick={onPick}><MonitorUp size={15} />Transmitir minha tela</button>
-      </div>
-    )
+  const watching = useMemo(() => new Map(r.watching.map((w) => [w.peer, w])), [r.watching])
+  // como num canal de voz: um bloco por pessoa (a tela, a prévia "ao vivo" ou o avatar)
+  const tiles: TileKind[] = r.members.map((m) => ({
+    peer: m.peer,
+    kind: m.peer === r.me ? (sharing ? "me" : "avatar") : watching.has(m.peer) ? "video" : m.live ? "preview" : "avatar",
+  }))
+  // quem eu assisto mas já saiu da lista continua até eu fechar
+  for (const w of r.watching) if (!r.members.some((m) => m.peer === w.peer)) tiles.push({ peer: w.peer, kind: "video" })
+  const focused = focus && tiles.some((t) => t.peer === focus) ? focus : null
+  const main = focused ? tiles.filter((t) => t.peer === focused) : tiles
+  const strip = focused ? tiles.filter((t) => t.peer !== focused) : []
+  const tile = (t: TileKind, small = false) => {
+    const m = r.members.find((x) => x.peer === t.peer)
+    const props = { small, focused: focused === t.peer, onFocus: () => setFocus(focused === t.peer ? null : t.peer) }
+    if (t.kind === "me") return <MyTile key={t.peer} {...props} />
+    if (t.kind === "video") return <StreamTile key={t.peer} {...props} w={watching.get(t.peer)!} member={m} />
+    if (t.kind === "preview") return <PreviewTile key={t.peer} {...props} m={m!} />
+    return <AvatarTile key={t.peer} {...props} m={m!} me={t.peer === r.me} />
   }
-  const st = sh.stats
   return (
-    <div className="au-card cr-console">
-      <div className="cr-onair"><span className="au-live">Ao vivo</span><span className="num cr-timer">{fmtTime((now.getTime() - sh.startedAt) / 1000)}</span></div>
-      <div className="grow cr-src" style={{ minWidth: 160 }}>
-        <div className="truncate" style={{ fontWeight: 500 }}>{sh.phase === "capturing" ? "Capturando…" : sh.source?.name}</div>
-        {sh.audioMode === "no-discord" && sh.audio && <span className="au-chip" style={{ marginRight: 6 }} title="O som da sua call no Discord não vai para quem assiste">{sh.discordExcluded ? "Som sem o Discord" : "Som do PC"}</span>}
-        {sh.audioNote && <div className="tiny" style={{ color: "var(--warn)" }}>{sh.audioNote}</div>}
-        <div className="tiny au-muted num">{sh.viewers.length} assistindo{st ? ` · ${st.width}×${st.height} · ${st.fps} fps · ${(st.kbps / 1000).toFixed(1)} Mbit/s${st.codec ? " · " + st.codec + (st.hardware ? " (placa)" : "") : ""}` : ""}</div>
+    <div className="dc dc-room">
+      <RoomHeader />
+      <div className="dc-body">
+        <div className="dc-stage-wrap">
+          {r.signal !== "online" && <div className="dc-alert">{r.signal === "reconnecting" ? "Reconectando ao servidor… as telas abertas continuam." : "Sem servidor: as telas abertas continuam, mas ninguém novo entra."}</div>}
+          <div className="dc-stage" data-n={Math.min(9, main.length)} data-focus={!!focused}>{main.map((t) => tile(t))}</div>
+          {strip.length > 0 && <div className="dc-strip">{strip.map((t) => tile(t, true))}</div>}
+          <ControlBar onPick={() => setPicking(true)} picking={picking} />
+        </div>
+        <MemberPanel />
       </div>
-      <div className="cr-controls">
-        <Segmented label="Qualidade" value={sh.quality} onChange={(q) => void setQuality(q)} options={QUALITIES.map((q) => ({ value: q, label: PROFILES[q].label }))} />
-        <ResolutionPick value={sh.resolution} onChange={(r) => { void patch("share", { resolution: r }); void setResolution(r) }} />
-        <span className="cr-sep" aria-hidden />
-        <button type="button" className="au-btn au-btn-sm" onClick={onPick}><Repeat size={13} />Trocar tela</button>
-        <button type="button" className="au-btn au-btn-sm au-btn-danger" onClick={stopSharing}><Square size={11} />Parar</button>
-      </div>
+      {(picking || r.share.phase === "source-lost") && (
+        <SourcePicker
+          title={r.share.phase === "source-lost" ? "A tela fechou: escolha outra" : sharing ? "Trocar a tela" : "Transmitir tela"}
+          onClose={() => setPicking(false)} live={sharing}
+          onPick={async (s, audio, quality, resolution) => {
+            if (sharing) await switchSource(s.id, s.name, s.kind)
+            else await startSharing({ sourceId: s.id, sourceName: s.name, sourceKind: s.kind, audio, quality, resolution })
+            setPicking(false)
+          }} />
+      )}
     </div>
   )
 }
 
-function MyTile() {
+function RoomHeader() {
+  const r = useShare((s) => s.room)
+  const [copied, setCopied] = useState(false)
+  const sig = r.signal === "online" ? { t: "Conectado", c: "var(--dc-green)" } : r.signal === "reconnecting" ? { t: "Reconectando", c: "#f0b232" } : { t: "Sem servidor", c: "var(--dc-red)" }
+  const live = r.members.filter((m) => m.live).length
+  return (
+    <div className="dc-head">
+      <Monitor size={20} className="dc-head-ico" />
+      <span className="dc-head-name" aria-label="Nome da sala">{r.roomName || r.code || "sala"}</span>
+      <span className="dc-head-sep" />
+      <span className="dc-head-info"><i className="dc-dot" style={{ background: sig.c }} />{sig.t}</span>
+      <span className="dc-head-info"><Users size={14} />{r.members.length}</span>
+      {live > 0 && <span className="dc-live-pill">{live} ao vivo</span>}
+      <span className="grow" />
+      <button type="button" className="dc-btn dc-btn-sm dc-btn-primary" onClick={() => { void navigator.clipboard.writeText(invite(r.roomName, r.password)); setCopied(true); setTimeout(() => setCopied(false), 1600) }}>
+        {copied ? <Check size={14} /> : <UserPlus size={14} />}{copied ? "Convite copiado" : "Convidar"}
+      </button>
+    </div>
+  )
+}
+
+/* ───────────── blocos do palco ───────────── */
+type TileProps = { small: boolean; focused: boolean; onFocus: () => void }
+function TileFrame({ children, label, live, small, focused, onFocus, extra, aria }: { children: React.ReactNode; label: React.ReactNode; live?: boolean; extra?: React.ReactNode; aria?: string } & TileProps) {
+  return (
+    <div className={cx("dc-tile", small && "dc-tile-small", focused && "dc-tile-focused")} aria-label={aria} onDoubleClick={onFocus}>
+      {children}
+      <div className="dc-tile-name">{live && <span className="dc-live">AO VIVO</span>}<span className="truncate">{label}</span></div>
+      {extra}
+      {!small && <button type="button" className="dc-tile-focus" aria-label={focused ? "Voltar à grade" : "Focar"} title={focused ? "Voltar à grade" : "Focar"} onClick={onFocus}>{focused ? <Minimize size={15} /> : <Maximize size={15} />}</button>}
+    </div>
+  )
+}
+
+function AvatarTile({ m, me, ...t }: TileProps & { m: Member; me: boolean }) {
+  return (
+    <TileFrame {...t} label={m.name + (me ? " (você)" : "")} aria={"Bloco de " + m.name}>
+      <div className="dc-tile-bg" style={{ background: `hsl(${hue(m.name)} 30% 22%)` }}><Avatar name={m.name} size={t.small ? 40 : 76} /></div>
+      {m.away && <div className="dc-tile-over">caiu, voltando…</div>}
+    </TileFrame>
+  )
+}
+
+function PreviewTile({ m, ...t }: TileProps & { m: Member }) {
+  return (
+    <TileFrame {...t} live label={m.name} aria={"Transmissão de " + m.name + " (não aberta)"}>
+      <div className="dc-tile-bg dc-tile-preview" style={{ background: `hsl(${hue(m.name)} 30% 18%)` }}>
+        <Avatar name={m.name} size={t.small ? 36 : 64} live />
+        {!t.small && <div className="dc-preview-text">{m.name} está transmitindo<span className="dc-dim truncate">{m.live?.label}</span></div>}
+        <button type="button" className="dc-btn dc-btn-primary dc-btn-sm" onClick={() => watchPeer(m.peer)}><Eye size={14} />Assistir transmissão</button>
+      </div>
+    </TileFrame>
+  )
+}
+
+function MyTile(t: TileProps) {
   const r = useShare((s) => s.room)
   const v = useRef<HTMLVideoElement>(null)
   useEffect(() => { const s = roomSession()?.localStream; if (v.current && s && v.current.srcObject !== s) v.current.srcObject = s }, [r.share.source?.id, r.share.phase])
   return (
-    <div className="au-tile" style={{ aspectRatio: "16 / 9" }}>
+    <TileFrame {...t} live label={"Você · " + (r.share.source?.name ?? "")} aria="Sua tela"
+      extra={<span className="dc-tile-badge"><Eye size={12} />{r.share.viewers.length}</span>}>
       <video ref={v} autoPlay muted playsInline aria-label="Sua tela (pré-visualização)" />
-      <div className="au-tile-tag"><span className="au-live">Você</span><span className="au-chip"><Eye size={12} />{r.share.viewers.length}</span></div>
-      <div className="au-tile-bar"><span className="tiny" style={{ color: "rgba(255,255,255,.75)" }}>pré-visualização local · {r.share.source?.name}</span></div>
-    </div>
+    </TileFrame>
   )
 }
 
-function StreamTile({ w, member, solo }: { w: Watch; member?: Member; solo: boolean }) {
+const GRADE: Record<string, { t: string; c: string }> = { good: { t: "boa", c: "var(--dc-green)" }, fair: { t: "razoável", c: "#f0b232" }, poor: { t: "fraca", c: "var(--dc-red)" } }
+function StreamTile({ w, member, ...t }: TileProps & { w: Watch; member?: Member }) {
   const ref = useRef<HTMLVideoElement>(null)
   const box = useRef<HTMLDivElement>(null)
   const [vol, setVol] = useState(1)
@@ -254,173 +276,236 @@ function StreamTile({ w, member, solo }: { w: Watch; member?: Member; solo: bool
   const st = w.stats
   const name = member?.name ?? "Transmissão"
   return (
-    <div ref={box} className="au-tile" style={{ aspectRatio: "16 / 9" }} aria-label={"Tela de " + name}>
-      <video ref={ref} autoPlay playsInline aria-label={"Transmissão de " + name} onDoubleClick={() => void box.current?.requestFullscreen()} />
+    <div ref={box} className={cx("dc-tile", t.small && "dc-tile-small", t.focused && "dc-tile-focused")} aria-label={"Tela de " + name} onDoubleClick={t.onFocus}>
+      <video ref={ref} autoPlay playsInline aria-label={"Transmissão de " + name} />
       {w.phase !== "watching" && (
-        <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", color: "#cfd6e4" }} className="small">
+        <div className="dc-tile-over">
           {w.phase === "away" ? `${name} caiu; esperando voltar…` : w.phase === "stopped" ? (
             <div className="col" style={{ alignItems: "center", gap: 10 }}>
               <span>{name} parou de transmitir.</span>
               <div className="row">
-                {member?.live && <button type="button" className="au-btn au-btn-sm" onClick={() => { unwatchPeer(w.peer); watchPeer(w.peer) }}>Assistir de novo</button>}
-                <button type="button" className="au-btn au-btn-sm" onClick={() => unwatchPeer(w.peer)}>Fechar</button>
+                {member?.live && <button type="button" className="dc-btn dc-btn-sm" onClick={() => { unwatchPeer(w.peer); watchPeer(w.peer) }}>Assistir de novo</button>}
+                <button type="button" className="dc-btn dc-btn-sm" onClick={() => unwatchPeer(w.peer)}>Fechar</button>
               </div>
             </div>
-          ) : "Conectando à tela…"}
+          ) : <><span className="dc-spinner dc-spinner-sm" aria-hidden />Conectando à tela…</>}
         </div>
       )}
-      <div className="au-tile-tag">
-        <span className="au-live">{name}</span>
-        {member?.live && <span className="au-chip truncate" style={{ maxWidth: 180 }}>{member.live.label}</span>}
-        {w.phase === "watching" && st && <span className="au-chip" title={"Conexão " + GRADE[w.grade].t}><i className="cr-dot" style={{ background: GRADE[w.grade].c }} />{st.height}p</span>}
+      <div className="dc-tile-name"><span className="dc-live">AO VIVO</span><span className="truncate">{name}</span>
+        {w.phase === "watching" && st && <span className="dc-q" title={"Conexão " + GRADE[w.grade].t}><i className="dc-dot" style={{ background: GRADE[w.grade].c }} />{st.height}p · {st.fps} fps</span>}
       </div>
-      <div className="au-tile-bar">
-        <span className="tiny num grow truncate" style={{ color: "rgba(255,255,255,.8)" }}>{st ? `${st.width}×${st.height} · ${st.fps} fps · ${(st.kbps / 1000).toFixed(1)} Mbit/s${st.rttMs != null ? " · " + st.rttMs + " ms" : ""}` : ""}</span>
+      <div className="dc-tile-ctl">
         {hasAudio && (
           <>
-            <button type="button" className="icon-btn" style={{ color: "#fff" }} aria-label={muted ? "Ativar som" : "Silenciar"} onClick={() => setMuted(!muted)}>{muted ? <VolumeX size={15} /> : <Volume2 size={15} />}</button>
-            {solo && <input className="range" type="range" min={0} max={1} step={0.05} value={vol} aria-label="Volume" style={{ width: 90 }} onChange={(e) => { setVol(Number(e.target.value)); setMuted(false) }} />}
+            <button type="button" className="dc-icon" aria-label={muted ? "Ativar som" : "Silenciar"} onClick={() => setMuted(!muted)}>{muted ? <VolumeX size={16} /> : <Volume2 size={16} />}</button>
+            {!t.small && <input className="range" type="range" min={0} max={1} step={0.05} value={vol} aria-label="Volume" style={{ width: 80, ["--p" as string]: vol * 100 + "%" }} onChange={(e) => { setVol(Number(e.target.value)); setMuted(false) }} />}
           </>
         )}
-        <button type="button" className="icon-btn" style={{ color: "#fff" }} aria-label="Tela cheia" onClick={() => void box.current?.requestFullscreen()}><Maximize size={15} /></button>
-        <button type="button" className="icon-btn" style={{ color: "#fff" }} aria-label={"Parar de assistir " + name} onClick={() => unwatchPeer(w.peer)}><X size={15} /></button>
+        <button type="button" className="dc-icon" aria-label={t.focused ? "Voltar à grade" : "Focar"} onClick={t.onFocus}>{t.focused ? <Minimize size={16} /> : <Maximize size={16} />}</button>
+        <button type="button" className="dc-icon" aria-label="Tela cheia" onClick={() => void box.current?.requestFullscreen()}><Maximize size={16} /></button>
+        <button type="button" className="dc-icon" aria-label={"Parar de assistir " + name} onClick={() => unwatchPeer(w.peer)}><X size={16} /></button>
       </div>
     </div>
   )
 }
 
-/* ───────────── lateral: sala, pessoas, pedidos ───────────── */
-function Sidebar() {
+/* ───────────── barra de controles (embaixo, ao centro) ───────────── */
+function ControlBar({ onPick, picking }: { onPick: () => void; picking: boolean }) {
   const r = useShare((s) => s.room)
-  const [copied, setCopied] = useState("")
+  const now = useNow(1000)
+  const [opts, setOpts] = useState(false)
+  const pop = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!opts) return
+    const out = (e: PointerEvent) => { if (!pop.current?.contains(e.target as Node) && !(e.target as HTMLElement).closest?.(".menu")) setOpts(false) }
+    addEventListener("pointerdown", out, true)
+    return () => removeEventListener("pointerdown", out, true)
+  }, [opts])
+  const sh = r.share
+  const live = sh.phase !== "off"
+  const st = sh.stats
+  return (
+    <div className="dc-bar-wrap">
+      {live ? (
+        <div className="dc-live-info">
+          <span className="dc-live">Ao vivo</span><span className="num">{fmtTime((now.getTime() - sh.startedAt) / 1000)}</span>
+          <span className="dc-dim">·</span><span>{sh.phase === "capturing" ? "Capturando…" : sh.source?.name}</span>
+          <span className="dc-dim">·</span><span>{sh.viewers.length} assistindo</span>
+          {sh.audioMode === "no-discord" && sh.audio && <span className="dc-chip" title="O som da sua call no Discord não vai para quem assiste">{sh.discordExcluded ? "Som sem o Discord" : "Som do PC"}</span>}
+          {st && <span className="dc-dim num">{st.width}×{st.height} · {st.fps} fps · {(st.kbps / 1000).toFixed(1)} Mbit/s{st.codec ? " · " + st.codec + (st.hardware ? " (placa)" : "") : ""}</span>}
+        </div>
+      ) : sh.error ? <div className="dc-live-info" style={{ color: "var(--dc-red)" }}>{sh.error}</div> : null}
+      {sh.audioNote && <div className="dc-live-info" style={{ color: "#f0b232" }}>{sh.audioNote}</div>}
+      <div className="dc-bar" ref={pop}>
+        {live ? (
+          <>
+            <button type="button" className="dc-round dc-round-on" aria-label="Parar" title="Parar de transmitir" onClick={stopSharing}><MonitorOff size={20} /></button>
+            <button type="button" className="dc-round" aria-label="Trocar tela" title="Trocar a tela" onClick={onPick}><Repeat size={19} /></button>
+            <button type="button" className={cx("dc-round", opts && "dc-round-active")} aria-label="Qualidade da transmissão" aria-expanded={opts} title="Qualidade e resolução" onClick={() => setOpts(!opts)}><Settings2 size={19} /></button>
+          </>
+        ) : (
+          <button type="button" className="dc-round dc-round-wide" aria-label="Transmitir minha tela" title="Transmitir minha tela" disabled={picking} onClick={onPick}><MonitorUp size={20} /><span>Transmitir</span></button>
+        )}
+        <button type="button" className="dc-round dc-round-leave" aria-label="Sair da sala" title="Sair da sala" onClick={leaveRoom}><PhoneOff size={20} /></button>
+        {opts && live && (
+          <div className="dc-pop" role="dialog" aria-label="Qualidade da transmissão">
+            <div className="dc-label">Qualidade</div>
+            <Segmented label="Qualidade" value={sh.quality} onChange={(q) => void setQuality(q)} options={QUALITIES.map((q) => ({ value: q, label: PROFILES[q].label }))} />
+            <div style={{ height: 10 }} />
+            <ResolutionPick value={sh.resolution} onChange={(v) => { void patch("share", { resolution: v }); void setResolution(v) }} />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ───────────── lista de pessoas e acesso (direita) ───────────── */
+function MemberPanel() {
+  const r = useShare((s) => s.room)
   const owner = r.me === r.owner
-  const copy = (txt: string, what: string) => { void navigator.clipboard.writeText(txt); setCopied(what); setTimeout(() => setCopied(""), 1500) }
   const watching = useMemo(() => new Set(r.watching.map((w) => w.peer)), [r.watching])
   const viewersOfMe = useMemo(() => new Set(r.share.viewers.map((v) => v.peer)), [r.share.viewers])
   return (
-    <div className="col" style={{ gap: 14 }}>
-      <div className="au-card" style={{ padding: 16 }}>
-        <div className="cr-head"><Lock size={12} />Acesso</div>
-        <div className="tiny au-muted">Código da sala</div>
-        <div className="au-score" style={{ fontSize: 30, letterSpacing: "0.12em", margin: "6px 0 12px" }} aria-label="Código da sala">{r.code || "—"}</div>
-        <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
-          <button type="button" className="au-btn au-btn-sm" onClick={() => copy(r.code, "code")}>{copied === "code" ? <Check size={12} /> : <Clipboard size={12} />}Copiar</button>
-          <button type="button" className="au-btn au-btn-sm" onClick={() => copy("aureon://join/" + r.code, "link")}>{copied === "link" ? <Check size={12} /> : <Clipboard size={12} />}Link</button>
-          {owner && <button type="button" className="au-btn au-btn-sm" title="Gera um código novo; o antigo deixa de valer" onClick={() => roomSession()?.rotateCode()}><RefreshCw size={12} />Novo</button>}
-        </div>
-        {owner && r.codeExpires > 0 && <div className="tiny au-dim" style={{ marginTop: 10 }}>Vale até {new Date(r.codeExpires).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} para novas entradas. Mande só para quem você conhece.</div>}
-        {owner && (
-          <>
-            <hr className="au-sep" style={{ margin: "14px 0" }} />
-            <div className="row small"><span className="grow">Aprovar quem entra</span><Switch label="Aprovar quem entra" checked={r.approval} onChange={(v) => roomSession()?.setApproval(v)} /></div>
-            <div className="row small" style={{ marginTop: 10 }}><span className="grow row" style={{ gap: 6 }}>{r.locked ? <><Lock size={12} />Sala trancada</> : <><LockOpen size={12} />Aceitando pedidos</>}</span><Switch label="Trancar sala" checked={r.locked} onChange={(v) => roomSession()?.setLocked(v)} /></div>
-          </>
-        )}
-      </div>
-
+    <aside className="dc-members">
       {owner && r.requests.length > 0 && (
-        <div className="au-card" style={{ padding: 14, borderColor: "color-mix(in srgb, var(--warn) 40%, transparent)" }}>
-          <div className="cr-head" style={{ color: "var(--warn)" }}><Users size={12} />Pedindo para entrar ({r.requests.length})</div>
+        <div className="dc-section">
+          <div className="dc-section-title" style={{ color: "#f0b232" }}>Pedindo para entrar — {r.requests.length}</div>
           {r.requests.map((q) => (
-            <div key={q.peer} className="row" style={{ padding: "6px 0" }}>
+            <div key={q.peer} className="dc-member dc-request">
               <Avatar name={q.name} />
               <span className="grow truncate">{q.name}</span>
-              <button type="button" className="au-btn au-btn-sm au-btn-primary" onClick={() => admit(q.peer, true)}>Aceitar</button>
-              <button type="button" className="au-btn au-btn-sm" onClick={() => admit(q.peer, false)}>Recusar</button>
+              <button type="button" className="dc-btn dc-btn-sm dc-btn-green" onClick={() => admit(q.peer, true)}>Aceitar</button>
+              <button type="button" className="dc-btn dc-btn-sm" onClick={() => admit(q.peer, false)}>Recusar</button>
             </div>
           ))}
         </div>
       )}
-
-      <div className="au-card" style={{ padding: "12px 10px 8px" }}>
-        <div className="cr-head" style={{ padding: "0 6px 4px" }}><Users size={12} /><span className="grow">Na sala ({r.members.length})</span></div>
-        <div className="col" style={{ gap: 2 }}>
-          {r.members.map((m) => {
-            const me = m.peer === r.me
-            return (
-              <div key={m.peer} className="row cr-member" style={{ opacity: m.away ? 0.55 : 1 }}>
-                <Avatar name={m.name} live={!!m.live} />
-                <div className="grow" style={{ minWidth: 0 }}>
-                  <div className="row" style={{ gap: 5 }}><span className="truncate" style={{ fontWeight: 500 }}>{m.name}{me ? " (você)" : ""}</span>{m.owner && <Crown size={12} color="var(--warn)" aria-label="cuida da sala" />}</div>
-                  <div className="tiny au-muted truncate">{m.away ? "caiu, voltando…" : m.live ? "ao vivo · " + m.live.label : viewersOfMe.has(m.peer) ? "assistindo você" : "na sala"}</div>
-                </div>
-                {!me && m.live && (watching.has(m.peer)
-                  ? <button type="button" className="au-btn au-btn-sm" aria-label={"Parar de assistir " + m.name} onClick={() => unwatchPeer(m.peer)}><EyeOff size={12} /></button>
-                  : <button type="button" className="au-btn au-btn-sm au-btn-primary" onClick={() => watchPeer(m.peer)}><Eye size={12} />Assistir</button>)}
-                {!me && owner && <button type="button" className="icon-btn" title="Remover da sala" aria-label={`Remover ${m.name}`} onClick={() => roomSession()?.kick(m.peer)}><UserX size={14} /></button>}
+      <div className="dc-section">
+        <div className="dc-section-title">Na sala ({r.members.length})</div>
+        {r.members.map((m) => {
+          const me = m.peer === r.me
+          return (
+            <div key={m.peer} className="dc-member" style={{ opacity: m.away ? 0.5 : 1 }}>
+              <Avatar name={m.name} live={!!m.live} />
+              <div className="grow" style={{ minWidth: 0 }}>
+                <div className="row" style={{ gap: 5, minWidth: 0 }}><span className="truncate dc-member-name">{m.name}{me ? " (você)" : ""}</span>{m.owner && <Crown size={12} color="#f0b232" aria-label="cuida da sala" style={{ flex: "none" }} />}</div>
+                <div className="dc-member-sub truncate">{m.live && <span className="dc-live dc-live-xs">AO VIVO</span>}{m.away ? "caiu, voltando…" : m.live ? m.live.label : viewersOfMe.has(m.peer) ? "assistindo você" : "na sala"}</div>
               </div>
-            )
-          })}
-        </div>
+              {!me && m.live && (watching.has(m.peer)
+                ? <button type="button" className="dc-icon" aria-label={"Parar de assistir " + m.name} title="Parar de assistir" onClick={() => unwatchPeer(m.peer)}><EyeOff size={15} /></button>
+                : <button type="button" className="dc-btn dc-btn-sm dc-btn-primary" onClick={() => watchPeer(m.peer)}>Assistir</button>)}
+              {!me && owner && <button type="button" className="dc-icon dc-kick" title="Remover da sala" aria-label={`Remover ${m.name}`} onClick={() => roomSession()?.kick(m.peer)}><UserX size={15} /></button>}
+            </div>
+          )
+        })}
       </div>
+      <AccessCard owner={owner} />
+    </aside>
+  )
+}
 
-      <div className="row" style={{ gap: 8 }}>
-        <button type="button" className="au-btn grow" onClick={leaveRoom}><LogOut size={14} />Sair da sala</button>
-        {owner && <button type="button" className="au-btn au-btn-danger" title="Fecha a sala para todo mundo" onClick={endRoom}>Encerrar sala</button>}
+function AccessCard({ owner }: { owner: boolean }) {
+  const r = useShare((s) => s.room)
+  const [show, setShow] = useState(false)
+  const [copied, setCopied] = useState("")
+  const [changing, setChanging] = useState(false)
+  const [np, setNp] = useState("")
+  const [err, setErr] = useState("")
+  const copy = (txt: string, what: string) => { void navigator.clipboard.writeText(txt); setCopied(what); setTimeout(() => setCopied(""), 1500) }
+  const save = async () => {
+    setErr("")
+    try { await roomSession()?.setPassword(np); setChanging(false); setNp("") } catch (e: any) { setErr(e?.message || String(e)) }
+  }
+  return (
+    <div className="dc-section dc-access">
+      <div className="dc-section-title">Acesso</div>
+      <div className="dc-kv"><span className="dc-dim">Sala</span><b className="truncate">{r.roomName}</b><button type="button" className="dc-icon" aria-label="Copiar o nome da sala" onClick={() => copy(r.roomName, "room")}>{copied === "room" ? <Check size={14} /> : <Clipboard size={14} />}</button></div>
+      <div className="dc-kv"><span className="dc-dim">Senha</span><b className="truncate num" aria-label="Senha da sala">{r.password ? (show ? r.password : "•".repeat(Math.min(10, r.password.length))) : "—"}</b>
+        {r.password && <button type="button" className="dc-icon" aria-label={show ? "Esconder senha" : "Mostrar senha"} onClick={() => setShow(!show)}>{show ? <EyeOff size={14} /> : <Eye size={14} />}</button>}
       </div>
+      <button type="button" className="dc-btn dc-btn-sm" style={{ width: "100%" }} onClick={() => copy(invite(r.roomName, r.password), "inv")}>{copied === "inv" ? <Check size={13} /> : <UserPlus size={13} />}{copied === "inv" ? "Convite copiado" : "Copiar convite (nome e senha)"}</button>
+      {owner && (
+        <>
+          {changing ? (
+            <div className="col" style={{ gap: 6, marginTop: 8 }}>
+              <PasswordField value={np} onChange={setNp} label="Nova senha" placeholder="Nova senha" onEnter={() => np.length >= 4 && void save()} />
+              {err && <div className="tiny" style={{ color: "var(--dc-red)" }}>{err}</div>}
+              <div className="row"><button type="button" className="dc-btn dc-btn-sm dc-btn-primary" disabled={np.length < 4} onClick={() => void save()}>Salvar senha</button><button type="button" className="dc-btn dc-btn-sm" onClick={() => setChanging(false)}>Cancelar</button></div>
+              <div className="tiny dc-dim">Quem já está na sala continua; quem for entrar usa a nova.</div>
+            </div>
+          ) : <button type="button" className="dc-btn dc-btn-sm" style={{ width: "100%", marginTop: 6 }} onClick={() => setChanging(true)}><RefreshCw size={13} />Trocar senha</button>}
+          <div className="dc-toggle"><span className="grow">Aprovar quem entra</span><Switch label="Aprovar quem entra" checked={r.approval} onChange={(v) => roomSession()?.setApproval(v)} /></div>
+          <div className="dc-toggle"><span className="grow row" style={{ gap: 6 }}>{r.locked ? <><Lock size={12} />Sala trancada</> : <><LockOpen size={12} />Aceitando pedidos</>}</span><Switch label="Trancar sala" checked={r.locked} onChange={(v) => roomSession()?.setLocked(v)} /></div>
+          <button type="button" className="dc-btn dc-btn-sm dc-btn-danger" style={{ width: "100%", marginTop: 8 }} title="Fecha a sala para todo mundo" onClick={endRoom}>Encerrar sala</button>
+        </>
+      )}
     </div>
   )
 }
 
-/* ───────────── escolher tela/janela ───────────── */
-function SourcePanel({ title, onPick, onClose, live }: { title: string; onPick: (s: ShareSource, audio: boolean, q: QualityId, r: ResolutionId) => Promise<void>; onClose: () => void; live: boolean }) {
+/* ───────────── escolher tela/janela (janela no centro, como no Discord) ───────────── */
+function SourcePicker({ title, onPick, onClose, live }: { title: string; onPick: (s: ShareSource, audio: boolean, q: QualityId, r: ResolutionId) => Promise<void>; onClose: () => void; live: boolean }) {
   const prefs = useSection("share")
   const [list, setList] = useState<ShareSource[] | null>(null)
   const [err, setErr] = useState("")
   const [sel, setSel] = useState<ShareSource | null>(null)
   const [busy, setBusy] = useState(false)
+  const [tab, setTab] = useState<"screen" | "window">("screen")
+  const [closing, setClosing] = useState(false)
+  const close = () => { setClosing(true); setTimeout(onClose, 150) }
   const load = () => { setErr(""); void invoke<ShareSource[]>("share:sources").then(setList).catch((e) => setErr(String(e?.message || e))) }
   useEffect(load, [])
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") close() }; addEventListener("keydown", k); return () => removeEventListener("keydown", k) }, [])
   if (!prefs) return null
-  const screens = list?.filter((s) => s.kind === "screen") ?? [], windows = list?.filter((s) => s.kind === "window") ?? []
+  const items = list?.filter((s) => s.kind === tab) ?? []
   const go = async (s: ShareSource | null) => {
     if (!s) return
     setBusy(true); setErr("")
     try { await onPick(s, prefs.audio, prefs.quality, prefs.resolution ?? "auto") } catch (e: any) { setErr(e?.message || String(e)) } finally { setBusy(false) }
   }
-  const card = (s: ShareSource) => (
-    <button key={s.id} type="button" onClick={() => { setSel(s); if (live) void go(s) }} onDoubleClick={() => void go(s)} aria-pressed={sel?.id === s.id}
-      className="au-card au-flat" style={{ padding: 8, textAlign: "left", borderColor: sel?.id === s.id ? "var(--accent)" : undefined, boxShadow: sel?.id === s.id ? "0 0 0 1px var(--accent)" : undefined }}>
-      <div style={{ aspectRatio: "16 / 9", overflow: "hidden", display: "grid", placeItems: "center", marginBottom: 8, borderRadius: 10, background: "rgba(0,0,0,.3)" }}>
-        {s.thumb ? <img src={s.thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : s.kind === "screen" ? <Monitor size={22} className="au-dim" /> : <AppWindow size={22} className="au-dim" />}
-      </div>
-      <div className="row small" style={{ gap: 6 }}>{s.icon ? <img src={s.icon} alt="" width={14} height={14} /> : s.kind === "screen" ? <Monitor size={13} /> : <AppWindow size={13} />}<span className="truncate">{s.name}</span></div>
-    </button>
-  )
   return (
-    <div className="au-card" style={{ padding: 16 }}>
-      <div className="row" style={{ marginBottom: 12 }}>
-        <span className="h2 grow">{title}</span>
-        <button type="button" className="au-btn au-btn-sm" onClick={load}><RefreshCw size={12} />Atualizar</button>
-        <button type="button" className="icon-btn" aria-label="Fechar" onClick={onClose}><X size={15} /></button>
-      </div>
-      {err && <div className="callout callout-bad" style={{ marginBottom: 10 }}>{err}</div>}
-      <div className="tiny au-muted" style={{ marginBottom: 6 }}>Telas</div>
-      <div className="grid-3" style={{ gap: 10, marginBottom: 12 }}>{screens.map(card)}</div>
-      {windows.length > 0 && <><div className="tiny au-muted" style={{ marginBottom: 6 }}>Janelas</div><div className="grid-3 scroll" style={{ gap: 10, maxHeight: 300, marginBottom: 12 }}>{windows.map(card)}</div></>}
-      {!live && (
-        <>
-          <hr className="au-sep" style={{ margin: "4px 0 12px" }} />
-          <div className="row" style={{ gap: 14, flexWrap: "wrap" }}>
-            <Segmented label="Qualidade" value={prefs.quality} onChange={(v) => void patch("share", { quality: v })} options={QUALITIES.map((q) => ({ value: q, label: PROFILES[q].label }))} />
-            <ResolutionPick value={prefs.resolution ?? "auto"} onChange={(r) => void patch("share", { resolution: r })} />
-            <label className="row small" style={{ gap: 8 }} title={isElectron && navigator.userAgent.includes("Windows") ? "Envia todo o som do computador (o Windows não separa o som de uma janela só)." : "Disponível no Windows."}>
-              <Switch label="Som do PC" checked={prefs.audio} onChange={(v) => void patch("share", { audio: v })} />Som do PC
-            </label>
-            {prefs.audio && (
-              <label className="row small" style={{ gap: 8 }} title="Tudo menos o Discord: quem assiste ouve o jogo, a música e o resto, mas não a sua call. Usa a captura por programa do Windows (10 versão 2004 ou mais novo, ou 11).">
-                Som
-                <Select label="Qual som" value={(prefs.audioMode ?? "all") as "all" | "no-discord"} onChange={(v) => void patch("share", { audioMode: v })} options={[{ value: "all", label: "Tudo do PC" }, { value: "no-discord", label: "Tudo menos o Discord" }]} />
+    <div className={"modal-back" + (closing ? " modal-closing" : "")} onClick={close}>
+      <div className="modal dc-picker" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+        <div className="row" style={{ marginBottom: 4 }}>
+          <span className="dc-title grow">{title}</span>
+          <button type="button" className="dc-icon" aria-label="Atualizar lista" title="Atualizar" onClick={load}><RefreshCw size={15} /></button>
+          <button type="button" className="dc-icon" aria-label="Fechar" onClick={close}><X size={16} /></button>
+        </div>
+        <Tabs label="Tipo de fonte" value={tab} onChange={setTab} tabs={[{ id: "screen", label: "Telas" }, { id: "window", label: "Janelas" }]} />
+        {err && <div className="dc-alert dc-alert-bad" style={{ marginBottom: 10 }}>{err}</div>}
+        <div className="dc-sources">
+          {!list && <div className="dc-muted">Procurando telas…</div>}
+          {list && !items.length && <div className="dc-muted">Nada para mostrar aqui.</div>}
+          {items.map((s) => (
+            <button key={s.id} type="button" className="dc-source" aria-pressed={sel?.id === s.id} onClick={() => { setSel(s); if (live) void go(s) }} onDoubleClick={() => void go(s)}>
+              <div className="dc-source-thumb">{s.thumb ? <img src={s.thumb} alt="" /> : s.kind === "screen" ? <Monitor size={24} /> : <AppWindow size={24} />}</div>
+              <div className="row small" style={{ gap: 6 }}>{s.icon ? <img src={s.icon} alt="" width={14} height={14} /> : s.kind === "screen" ? <Monitor size={13} /> : <AppWindow size={13} />}<span className="truncate">{s.name}</span></div>
+            </button>
+          ))}
+        </div>
+        {!live && (
+          <div className="dc-picker-foot">
+            <div className="dc-picker-opts">
+              <Segmented label="Qualidade" value={prefs.quality} onChange={(v) => void patch("share", { quality: v })} options={QUALITIES.map((q) => ({ value: q, label: PROFILES[q].label }))} />
+              <ResolutionPick value={prefs.resolution ?? "auto"} onChange={(v) => void patch("share", { resolution: v })} />
+              <label className="row small" style={{ gap: 8 }} title={isElectron && navigator.userAgent.includes("Windows") ? "Envia o som do computador junto com a tela." : "Disponível no Windows."}>
+                <Switch label="Som do PC" checked={prefs.audio} onChange={(v) => void patch("share", { audio: v })} />Som do PC
               </label>
-            )}
-            <label className="row small" style={{ gap: 8 }} title="Usa H.264 (NVENC, Quick Sync, AMF) quando existir: menos uso de processador.">
-              <Switch label="Preferir placa de vídeo" checked={prefs.preferHardware} onChange={(v) => void patch("share", { preferHardware: v })} />Placa de vídeo
-            </label>
-            <span className="grow" />
-            <button type="button" className={cx("au-btn", "au-btn-primary")} disabled={!sel || busy} onClick={() => void go(sel)}><MonitorUp size={15} />{busy ? "Capturando…" : "Começar a transmitir"}</button>
+              {prefs.audio && (
+                <label className="row small" style={{ gap: 8 }} title="Tudo menos o Discord: quem assiste ouve o jogo, a música e o resto, mas não a sua call. Usa a captura por programa do Windows (10 versão 2004 ou mais novo, ou 11).">
+                  Som
+                  <Select label="Qual som" value={(prefs.audioMode ?? "all") as "all" | "no-discord"} onChange={(v) => void patch("share", { audioMode: v })} options={[{ value: "all", label: "Tudo do PC" }, { value: "no-discord", label: "Tudo menos o Discord" }]} />
+                </label>
+              )}
+              <label className="row small" style={{ gap: 8 }} title="Usa H.264 (NVENC, Quick Sync, AMF) quando existir: menos uso de processador.">
+                <Switch label="Preferir placa de vídeo" checked={prefs.preferHardware} onChange={(v) => void patch("share", { preferHardware: v })} />Placa de vídeo
+              </label>
+            </div>
+            <button type="button" className="dc-btn dc-btn-primary" disabled={!sel || busy} onClick={() => void go(sel)}><MonitorUp size={16} />{busy ? "Capturando…" : "Começar a transmitir"}</button>
           </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   )
 }

@@ -39,6 +39,9 @@ export interface RoomState {
   phase: "idle" | "connecting" | "waiting" | "in-room" | "ended" | "error"
   error: string
   room: string
+  /** nome da sala (escolhido por quem criou) e a senha (só quem criou ou digitou sabe; nunca vem do servidor) */
+  roomName: string
+  password: string
   code: string
   codeExpires: number
   me: string
@@ -54,7 +57,7 @@ export interface RoomState {
 }
 export const idleShare = (): MyShare => ({ phase: "off", source: null, audio: false, quality: "auto", resolution: "auto", startedAt: 0, viewers: [], stats: null, error: "", audioMode: "all", discordExcluded: false, audioNote: "" })
 export const idleRoom = (): RoomState => ({
-  phase: "idle", error: "", room: "", code: "", codeExpires: 0, me: "", owner: "", name: "", members: [], requests: [], signal: "online",
+  phase: "idle", error: "", room: "", roomName: "", password: "", code: "", codeExpires: 0, me: "", owner: "", name: "", members: [], requests: [], signal: "online",
   approval: true, locked: false, share: idleShare(), watching: [],
 })
 
@@ -101,29 +104,32 @@ export class RoomSession {
   get localStream() { return this.stream }
 
   /* ───────────── entrar / criar ───────────── */
-  async create(signalUrl: string, name: string, approval: boolean) {
+  /** cria a sala com o nome e a senha escolhidos */
+  async create(signalUrl: string, name: string, approval: boolean, room: string, password: string) {
     this.set({ ...idleRoom(), phase: "connecting" })
     try {
       const sig = await this.open(signalUrl)
-      const r = await sig.request({ t: "create", name, approval }, ["created"])
-      if (r.protocol !== 2) throw new Error("O servidor de transmissão está desatualizado. Publique a versão nova (pasta server/).")
+      const r = await sig.request({ t: "create", name, approval, room, password }, ["created"])
+      // servidor antigo ignora nome/senha e cria uma sala de código: fecha ela e avisa
+      if (r.protocol !== 2 || !r.roomName) { sig.send({ t: "end" }); throw new Error("O servidor de transmissão está desatualizado (precisa da versão 2.1 para salas com senha). Publique a pasta server/ de novo.") }
       this.enter(r)
-      this.set({ code: r.code, codeExpires: r.codeExpires })
+      this.set({ roomName: r.roomName, password, code: "", codeExpires: r.codeExpires })
     } catch (e: any) { this.fail(e) ; throw e }
   }
 
-  async join(signalUrl: string, code: string, name: string) {
+  /** entra com o nome da sala e a senha */
+  async join(signalUrl: string, room: string, password: string, name: string) {
     this.set({ ...idleRoom(), phase: "connecting" })
     try {
       const sig = await this.open(signalUrl)
-      const first = await sig.request({ t: "join", code, name }, ["waiting", "joined"], 15000)
+      const first = await sig.request({ t: "join", room, password, name }, ["waiting", "joined"], 15000)
       if (first.t === "waiting") {
         this.set({ phase: "waiting", room: first.room })
         // a aprovação pode demorar: espera até 3 minutos
         const r = await sig.wait(["joined"], 180000, "join").catch((e) => { if (e.code === "timeout") throw new Error("Ninguém aprovou sua entrada a tempo."); throw e })
         this.enter(r)
       } else this.enter(first)
-      this.set({ code: String(code).toUpperCase() })
+      this.set({ roomName: this.state.roomName || String(room).toLowerCase(), password })
     } catch (e: any) { this.fail(e); throw e }
   }
 
@@ -145,7 +151,7 @@ export class RoomSession {
     if (r.protocol != null && r.protocol !== 2) throw new Error("O servidor de transmissão está desatualizado. Publique a versão nova (pasta server/).")
     this.ice = r.ice
     this.sig!.resumeMsg = { t: "resume", room: r.room, peer: r.peer, key: r.key }
-    this.set({ phase: "in-room", room: r.room, me: r.peer, owner: r.owner, name: r.name || "", members: this.members(r.members), approval: r.approval !== false, locked: !!r.locked, signal: "online" })
+    this.set({ phase: "in-room", room: r.room, roomName: r.roomName || this.state.roomName, me: r.peer, owner: r.owner, name: r.name || "", members: this.members(r.members), approval: r.approval !== false, locked: !!r.locked, signal: "online" })
     clearInterval(this.statsTimer)
     this.statsTimer = setInterval(() => void this.tickStats(), 2000)
   }
@@ -496,6 +502,12 @@ export class RoomSession {
   admit(peer: string, ok: boolean) { this.sig?.send({ t: "admit", peer, ok }); this.set({ requests: this.state.requests.filter((x) => x.peer !== peer) }) }
   kick(peer: string) { this.sig?.send({ t: "kick", peer }) }
   rotateCode() { this.sig?.send({ t: "rotate" }) }
+  /** só o dono: nova senha para quem ainda vai entrar (quem está dentro continua) */
+  async setPassword(password: string) {
+    if (!this.sig) return
+    await this.sig.request({ t: "set", password }, ["password-set"], 8000)
+    this.set({ password })
+  }
   setApproval(on: boolean) { this.sig?.send({ t: "set", approval: on }) }
   setLocked(on: boolean) { this.sig?.send({ t: "set", locked: on }) }
 

@@ -6,7 +6,7 @@ import { WebSocketServer } from "ws"
 import { Hub, PROTOCOL } from "./hub.mjs"
 import { createTurnCache, providerFromEnv } from "./turn-providers.mjs"
 
-export const VERSION = "2.0.0"
+export const VERSION = "2.1.0"
 const list = (v) => String(v || "").split(",").map((s) => s.trim()).filter(Boolean)
 
 export function configFromEnv(env = process.env) {
@@ -41,7 +41,7 @@ export function startServer(cfg = configFromEnv()) {
     if (req.url === "/health" || req.url === "/") {
       res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store", "access-control-allow-origin": "*" })
       const turnInfo = turn ? turn.status() : { provider: cfg.hub.turnUrls.length ? "coturn" : "", ok: cfg.hub.turnUrls.length > 0, error: "" }
-      return res.end(JSON.stringify({ service: "aureon-signal", version: VERSION, protocol: PROTOCOL, turn: turnInfo.ok, turnProvider: turnInfo.provider, turnError: turnInfo.error || undefined, ...hub.stats() }))
+      return res.end(JSON.stringify({ service: "aureon-signal", version: VERSION, protocol: PROTOCOL, features: ["passwords"], turn: turnInfo.ok, turnProvider: turnInfo.provider, turnError: turnInfo.error || undefined, ...hub.stats() }))
     }
     res.writeHead(404).end()
   })

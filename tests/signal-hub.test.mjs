@@ -203,3 +203,65 @@ test("TURN: credencial temporária no formato do coturn", () => {
   assert.equal(ice[0].urls[0], "turn:t.example:3478")
   assert.ok(ice[0].username.endsWith(":p"))
 })
+
+/* ---------- salas com nome e senha ---------- */
+import { normalizeRoomName, checkPassword, hashPassword } from "../server/hub.mjs"
+
+test("nome da sala: sem acento, minúsculo, hífen; curto ou vazio é recusado", () => {
+  assert.equal(normalizeRoomName("Sala do Gabriel!"), "sala-do-gabriel")
+  assert.equal(normalizeRoomName("  Ação  Total  "), "acao-total")
+  assert.equal(normalizeRoomName("ab"), "")
+  assert.equal(normalizeRoomName("x".repeat(30)), "")
+})
+
+test("senha: guardada só como hash lento com sal; confere certo e errado", () => {
+  const r = hashPassword("pipoca123")
+  assert.ok(r.salt.length === 16 && r.hash.length === 32)
+  assert.equal(checkPassword("pipoca123", r), true)
+  assert.equal(checkPassword("pipoca124", r), false)
+  assert.equal(checkPassword("pipoca123", null), false, "sala inexistente nunca confere")
+})
+
+test("criar com nome e senha, entrar com os dois; senha errada e nome repetido recusados", () => {
+  const { hub, client, last } = setup()
+  client("h"); hub.handle("h", { t: "create", name: "Gabriel", room: "Jogatina", password: "segredo1" })
+  const c = last("h", "created")
+  assert.equal(c.roomName, "jogatina"); assert.equal(c.code, "")
+  const room = hub.rooms.get(c.room)
+  assert.ok(!JSON.stringify(room.pw).includes("segredo1"), "a senha não fica guardada em texto")
+  client("x"); hub.handle("x", { t: "create", room: "jogatina", password: "outra123" })
+  assert.equal(last("x").code, "name-taken")
+  client("v"); hub.handle("v", { t: "join", room: "JOGATINA", password: "errada!", name: "V" })
+  assert.equal(last("v").code, "bad-password")
+  hub.handle("v", { t: "join", room: "jogatina", password: "segredo1", name: "V" })
+  assert.equal(last("v").t, "waiting")
+  hub.handle("h", { t: "admit", peer: last("h", "request").peer, ok: true })
+  assert.equal(last("v", "joined").roomName, "jogatina")
+  client("s"); hub.handle("s", { t: "create", room: "abc", password: "123" })
+  assert.equal(last("s").code, "weak-password")
+  hub.close()
+})
+
+test("dono troca a senha: a antiga deixa de valer", () => {
+  const { hub, client, last } = setup()
+  client("h"); hub.handle("h", { t: "create", room: "minha-sala", password: "antiga1" })
+  hub.handle("h", { t: "set", password: "nova1234" })
+  assert.equal(last("h", "password-set").t, "password-set")
+  client("a"); hub.handle("a", { t: "join", room: "minha-sala", password: "antiga1" })
+  assert.equal(last("a").code, "bad-password")
+  client("b"); hub.handle("b", { t: "join", room: "minha-sala", password: "nova1234" })
+  assert.equal(last("b").t, "waiting")
+  hub.close()
+})
+
+test("força bruta na senha: IP bloqueado e sala trancada", () => {
+  const { hub, client, last } = setup({ ipFailLimit: 3, roomFailLimit: 4 })
+  client("h"); hub.handle("h", { t: "create", room: "alvo", password: "certa123" })
+  client("x", "6.6.6.6")
+  for (let i = 0; i < 3; i++) hub.handle("x", { t: "join", room: "alvo", password: "chute" + i })
+  hub.handle("x", { t: "join", room: "alvo", password: "certa123" })
+  assert.equal(last("x").code, "rate")
+  for (let i = 0; i < 4; i++) { client("y" + i, "7.7.7." + i); hub.handle("y" + i, { t: "join", room: "alvo", password: "x" + i + "yyyy" }) }
+  assert.equal(last("h", "alert").code, "brute")
+  hub.close()
+})

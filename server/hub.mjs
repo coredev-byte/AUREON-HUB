@@ -2,7 +2,7 @@
 // Protocolo 2: sala no estilo "canal de voz". Várias pessoas na mesma sala, e qualquer uma pode transmitir a
 // própria tela; quem assiste escolhe qual tela ver (uma ou várias). O servidor só repassa mensagens de
 // conexão (ofertas/respostas SDP e candidatos ICE) entre membros aceitos. Vídeo e áudio nunca passam por aqui.
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto"
+import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto"
 
 export const PROTOCOL = 2
 export const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ" // base32 de Crockford (sem I, L, O, U)
@@ -21,6 +21,25 @@ export function normalizeCode(raw) {
   return String(raw || "").toUpperCase().replace(/[\s-]/g, "").replace(/O/g, "0").replace(/[IL]/g, "1")
 }
 export const formatCode = (room, secret) => room + "-" + secret
+
+/* ---------- salas com nome e senha (escolhidos por quem cria) ---------- */
+export const PASSWORD_MIN = 4
+/** "Sala do Gabriel!" -> "sala-do-gabriel" (minúsculas, sem acento, letras/números/hífen, 3 a 24) */
+export function normalizeRoomName(raw) {
+  const s = String(raw || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()
+    .replace(/[\s_]+/g, "-").replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-").replace(/^-|-$/g, "")
+  return s.length >= 3 && s.length <= 24 ? s : ""
+}
+/** senha: hash lento (scrypt) com sal próprio; o servidor nunca guarda a senha */
+const SCRYPT = { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }
+export function hashPassword(pw, salt = randomBytes(16)) { return { salt, hash: scryptSync(String(pw), salt, 32, SCRYPT) } }
+export function checkPassword(pw, rec) {
+  // sala inexistente: calcula assim mesmo (o tempo da resposta não revela se a sala existe)
+  const r = rec ?? { salt: Buffer.alloc(16), hash: Buffer.alloc(32) }
+  const ok = timingSafeEqual(scryptSync(String(pw ?? ""), r.salt, 32, SCRYPT), r.hash)
+  return !!rec && ok
+}
+const validPassword = (pw) => typeof pw === "string" && pw.length >= PASSWORD_MIN && pw.length <= 64
 const sha = (s) => createHash("sha256").update(s).digest()
 const id = () => randomBytes(12).toString("base64url")
 const sameKey = (a, b) => typeof a === "string" && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b))
@@ -122,13 +141,26 @@ export class Hub {
 
   create(clientId, c, msg, err) {
     if (c.room) return err("busy")
-    let roomId
-    do roomId = randomCode(ROOM_LEN); while (this.rooms.has(roomId))
-    const secret = randomCode(SECRET_LEN), peer = id(), key = randomBytes(18).toString("base64url")
     const now = this.now()
+    // sala com nome e senha (0.7+) ou com código curto gerado (apps antigos)
+    const withPassword = msg.room != null || msg.password != null
+    let roomId, secret = "", roomName = "", pw = null
+    if (withPassword) {
+      roomName = normalizeRoomName(msg.room)
+      if (!roomName) return err("bad-name")
+      if (!validPassword(msg.password)) return err("weak-password")
+      roomId = "s:" + roomName
+      if (this.rooms.has(roomId)) return err("name-taken")
+      pw = hashPassword(msg.password)
+    } else {
+      do roomId = randomCode(ROOM_LEN); while (this.rooms.has(roomId))
+      secret = randomCode(SECRET_LEN)
+    }
+    const peer = id(), key = randomBytes(18).toString("base64url")
     const name = String(msg.name || "").slice(0, 40) || "Anfitrião"
     const room = {
-      id: roomId, secretHash: sha(secret), codeExpires: now + this.o.codeTtlMs, expires: now + this.o.roomTtlMs,
+      id: roomId, roomName, pw, secretHash: sha(secret || randomBytes(16).toString("hex")),
+      codeExpires: withPassword ? now + this.o.roomTtlMs : now + this.o.codeTtlMs, expires: now + this.o.roomTtlMs,
       owner: peer, approval: msg.approval !== false, locked: false, fails: 0, name,
       maxMembers: 1 + Math.min(this.o.maxViewers, Math.max(1, Number(msg.maxViewers) || this.o.maxViewers)),
       members: new Map(), // peer -> { name, admitted, key, away, live, at }
@@ -139,7 +171,7 @@ export class Hub {
     Object.assign(c, { peer, room: roomId })
     this.peers.set(peer, clientId)
     c.send({
-      t: "created", protocol: PROTOCOL, room: roomId, code: formatCode(roomId, secret), peer, key, ice: this.ice(peer), owner: peer,
+      t: "created", protocol: PROTOCOL, room: roomId, roomName, code: withPassword ? "" : formatCode(roomId, secret), peer, key, ice: this.ice(peer), owner: peer,
       codeExpires: room.codeExpires, expires: room.expires, maxMembers: room.maxMembers, members: this.memberList(room), approval: room.approval, locked: false, name,
     })
   }
@@ -147,6 +179,17 @@ export class Hub {
   join(clientId, c, msg, err) {
     if (c.room) return err("busy")
     if (this.blocked(c.ip)) return err("rate")
+    if (msg.room != null) {
+      // nome da sala + senha
+      const slug = normalizeRoomName(msg.room)
+      const room = slug ? this.rooms.get("s:" + slug) : null
+      if (!checkPassword(msg.password, room?.pw ?? null)) {
+        this.fail(c.ip)
+        if (room && ++room.fails >= this.o.roomFailLimit && !room.locked) { room.locked = true; this.sendPeer(room.owner, { t: "alert", code: "brute" }) }
+        return err("bad-password")
+      }
+      return this.enter(clientId, c, room, msg, err)
+    }
     const code = normalizeCode(msg.code)
     if (!new RegExp(`^[0-9A-Z]{${ROOM_LEN + SECRET_LEN}}$`).test(code)) { this.fail(c.ip); return err("bad-code") }
     const room = this.rooms.get(code.slice(0, ROOM_LEN))
@@ -156,6 +199,11 @@ export class Hub {
       if (room && ++room.fails >= this.o.roomFailLimit && !room.locked) { room.locked = true; this.sendPeer(room.owner, { t: "alert", code: "brute" }) }
       return err("bad-code")
     }
+    return this.enter(clientId, c, room, msg, err)
+  }
+
+  /** senha/código conferidos: pede para entrar (ou entra direto, se a sala não exige aprovação) */
+  enter(clientId, c, room, msg, err) {
     if (this.now() > room.codeExpires) return err("expired")
     if (room.locked) return err("locked")
     if (this.admitted(room).length >= room.maxMembers) return err("full")
@@ -176,7 +224,7 @@ export class Hub {
     m.admitted = true
     m.at = this.now()
     this.sendPeer(peer, {
-      t: "joined", protocol: PROTOCOL, room: room.id, peer, key: m.key, ice: this.ice(peer), owner: room.owner, name: room.name,
+      t: "joined", protocol: PROTOCOL, room: room.id, roomName: room.roomName, peer, key: m.key, ice: this.ice(peer), owner: room.owner, name: room.name,
       members: this.memberList(room), approval: room.approval, locked: room.locked,
     })
     this.broadcast(room, { t: "member", peer, name: m.name, live: null, owner: false }, peer)
@@ -246,6 +294,12 @@ export class Hub {
     if (!room) return
     if (typeof msg.approval === "boolean") room.approval = msg.approval
     if (typeof msg.locked === "boolean") room.locked = msg.locked
+    // trocar a senha (só salas com nome): quem já está dentro continua; quem tentar entrar usa a nova
+    if (msg.password != null && room.pw) {
+      if (!validPassword(msg.password)) return c.send({ t: "error", code: "weak-password", re: "set" })
+      room.pw = hashPassword(msg.password); room.fails = 0; room.locked = false
+      c.send({ t: "password-set" })
+    }
     this.broadcast(room, { t: "settings", approval: room.approval, locked: room.locked })
   }
 
@@ -264,7 +318,7 @@ export class Hub {
     this.peers.set(peer, clientId)
     const owner = room.owner === peer
     c.send({
-      t: "resumed", room: room.id, peer, ice: this.ice(peer), admitted: m.admitted, owner: room.owner, members: this.memberList(room),
+      t: "resumed", room: room.id, roomName: room.roomName, peer, ice: this.ice(peer), admitted: m.admitted, owner: room.owner, members: this.memberList(room),
       requests: owner ? this.requestsOf(room) : [], approval: room.approval, locked: room.locked,
     })
     if (m.admitted) this.broadcast(room, { t: "member-back", peer }, peer)

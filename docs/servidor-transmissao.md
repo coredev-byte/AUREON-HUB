@@ -3,12 +3,12 @@
 A transmissão do Aureon Hub precisa de dois serviços:
 
 1. **Sinalização** (`server/`, obrigatório): um servidor WebSocket pequeno (Node + `ws`). Ele cria as salas, confere os códigos, repassa as mensagens de conexão e gera credenciais TURN temporárias. **Vídeo e áudio não passam por ele.**
-   - Versão 2.0 (protocolo 2), exigida pelo Aureon Hub 0.5 ou mais novo. A sala funciona como um canal de voz: várias pessoas entram, qualquer uma pode transmitir a própria tela e cada uma escolhe o que assistir.
+   - Versão 2.1 (protocolo 2 + salas com senha), exigida pelo Aureon Hub 0.7 ou mais novo. A 2.0 serve para o app 0.5–0.6. A sala funciona como um canal de voz: várias pessoas entram, qualquer uma pode transmitir a própria tela e cada uma escolhe o que assistir.
 2. **TURN** (coturn, recomendado): retransmite a mídia quando a rede de alguém bloqueia a conexão direta (CGNAT rígido, empresa, escola). Sem TURN, a transmissão funciona na maioria das redes domésticas, mas não em todas.
 
 Todo mundo na sala precisa configurar o **mesmo** endereço em *Transmissão › Servidor e conexão*.
 
-> **Atualizando da versão 1.x:** publique de novo a pasta `server/` (no Render, "Manual Deploy › Deploy latest commit", se o deploy automático estiver desligado). Confira em `/health`: deve aparecer `"version":"2.0.0","protocol":2`. Apps 0.4 ou mais antigos não entram em salas do servidor 2.0.
+> **Atualizando da versão 1.x:** publique de novo a pasta `server/` (no Render, "Manual Deploy › Deploy latest commit", se o deploy automático estiver desligado). Confira em `/health`: deve aparecer `"version":"2.1.0","protocol":2,"features":["passwords"]`. Apps 0.4 ou mais antigos não entram em salas do servidor 2.0.
 
 ## Variáveis de ambiente (sinalização)
 
@@ -91,8 +91,11 @@ No servidor de sinalização:
 
 ## Segurança
 
-- **Código:** `SALA-SEGREDO` curto, com 8 caracteres (ex.: `K7F2-Q9MX`). São 4 da sala e 4 do segredo (20 bits). O servidor guarda só o hash do segredo e compara em tempo constante.
-  - Por ser curto, o código depende das proteções abaixo. Por padrão, quem cuida da sala ainda aprova cada entrada. O código vence em 2 h para novas entradas e pode ser trocado a qualquer momento.
+- **Nome e senha:** quem cria escolhe o nome da sala (3 a 24 letras, números ou hífen) e uma senha (4 a 64 caracteres). Quem entra digita os dois.
+  - O servidor nunca guarda a senha: guarda só um hash scrypt com sal próprio. O cálculo é lento de propósito (~50 ms) para atrapalhar chutes em massa, e a comparação é em tempo constante. A sala inexistente custa o mesmo tempo, então a resposta não revela se ela existe.
+  - O dono pode trocar a senha a qualquer momento. Quem já está dentro continua; quem for entrar usa a nova.
+  - Por padrão, quem cuida da sala ainda aprova cada entrada.
+  - Apps 0.5–0.6 ainda conseguem usar salas de código curto (`XXXX-XXXX`) no mesmo servidor.
 - **Tentativas erradas:**
   - 8 erros por IP em 10 min bloqueiam aquele IP;
   - 30 erros numa mesma sala a trancam e avisam o transmissor, que pode gerar um código novo.

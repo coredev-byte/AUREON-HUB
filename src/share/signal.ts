@@ -6,7 +6,11 @@ type Handler = (m: Msg) => void
 
 export const ERRORS: Record<string, string> = {
   "bad-code": "Código inválido. Confira e tente de novo.",
-  expired: "Este código venceu. Peça um novo para quem cuida da sala.",
+  "bad-password": "Sala ou senha incorreta. Confira e tente de novo.",
+  "name-taken": "Já existe uma sala aberta com esse nome. Escolha outro.",
+  "bad-name": "Nome da sala: use de 3 a 24 letras, números ou hífen.",
+  "weak-password": "A senha precisa ter de 4 a 64 caracteres.",
+  expired: "Esta sala não aceita mais entradas. Peça para quem cuida dela criar outra.",
   locked: "A sala está trancada para novas entradas.",
   full: "A sala está cheia.",
   rate: "Muitas tentativas erradas. Espere alguns minutos.",

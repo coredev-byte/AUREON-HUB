@@ -42,7 +42,7 @@ const broadcast = (ch, payload, role) => windows.broadcast(ch, payload, role)
 function inviteFrom(argv) {
   const url = (argv || []).find((a) => typeof a === "string" && a.startsWith("aureon://"))
   if (!url) return null
-  const m = /^aureon:\/\/join\/([A-Z0-9-]{8,24})\/?$/i.exec(url)
+  const m = /^aureon:\/\/join\/([A-Z0-9-]{3,24})\/?$/i.exec(url)
   return m ? m[1].toUpperCase() : null
 }
 let pendingInvite = inviteFrom(process.argv)

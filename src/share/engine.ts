@@ -25,7 +25,7 @@ function publish() {
     pub = {
       active: true, role: sharing ? "host" : "viewer", phase: sharing ? r.share.phase : r.phase,
       source: r.share.source?.name ?? "", startedAt: r.share.startedAt || Date.now(), viewers: r.share.viewers.length,
-      requests: r.requests.length, code: r.code, quality: PROFILES[r.share.quality].label + (r.share.resolution !== "auto" ? " · " + (RESOLUTIONS.find((x) => x.id === r.share.resolution)?.label ?? "") : ""), audio: r.share.audio,
+      requests: r.requests.length, code: r.roomName || r.code, quality: PROFILES[r.share.quality].label + (r.share.resolution !== "auto" ? " · " + (RESOLUTIONS.find((x) => x.id === r.share.resolution)?.label ?? "") : ""), audio: r.share.audio,
       hostName: watching.join(", "), members: r.members.length, live: r.members.filter((m) => m.live).length, owner: r.me === r.owner,
       connection: r.signal === "reconnecting" ? "reconnecting" : r.signal === "offline" ? "offline" : grade,
     }
@@ -69,15 +69,15 @@ const needUrl = () => {
 }
 const myName = () => getSection("share")?.name?.trim() || "Convidado"
 
-export async function createRoom(name = myName()) {
+export async function createRoom(room: string, password: string, name = myName()) {
   const url = needUrl()
   const prefs = getSection("share")
-  await newSession().create(url, name, prefs?.approval ?? true)
-  notify({ kind: "share", title: "Sala criada", body: `Convite ${session?.state.code}` })
+  await newSession().create(url, name, prefs?.approval ?? true, room, password)
+  notify({ kind: "share", title: "Sala criada", body: `Sala ${session?.state.roomName}: mande o nome e a senha para quem você quer chamar.` })
 }
-export async function joinRoom(code: string, name = myName()) {
+export async function joinRoom(room: string, password: string, name = myName()) {
   const url = needUrl()
-  await newSession().join(url, code, name)
+  await newSession().join(url, room, password, name)
 }
 export function leaveRoom() { session?.leave(); session = null; useShare.setState({ room: idleRoom() }); publish() }
 export function endRoom() { session?.endForAll(); session = null; useShare.setState({ room: idleRoom() }); publish() }

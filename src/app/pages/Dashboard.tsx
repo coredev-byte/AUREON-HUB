@@ -69,7 +69,7 @@ export default function Dashboard() {
           ) : share.active ? (
             <><div className="k" style={{ fontSize: 18, marginTop: 6 }}>Na sala {share.code}</div><div className="small muted">{share.members ?? 1} pessoa(s) · {share.hostName ? "assistindo " + share.hostName : `${share.live ?? 0} transmitindo`}</div></>
           ) : (
-            <><div className="k" style={{ fontSize: 18, marginTop: 6 }}>Nenhuma ativa</div><div className="small muted">Sala privada com código curto: várias pessoas podem transmitir.</div></>
+            <><div className="k" style={{ fontSize: 18, marginTop: 6 }}>Nenhuma ativa</div><div className="small muted">Sala com nome e senha: várias pessoas podem transmitir.</div></>
           )}
           <button type="button" className="btn btn-sm" style={{ alignSelf: "flex-start", marginTop: "auto" }} onClick={() => go("share")}>{share.active ? "Abrir sala" : "Criar ou entrar"}</button>
         </div>
