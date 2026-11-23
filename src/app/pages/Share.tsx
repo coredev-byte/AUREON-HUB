@@ -6,7 +6,7 @@ import {
 import { invoke, isElectron } from "@/shared/bridge"
 import { fmtTime, useNow } from "@/shared/hooks"
 import { patch, useSection } from "@/shared/state"
-import { PageHead, Section, Segmented, Switch, Empty, cx } from "@/shared/ui"
+import { PageHead, Section, Segmented, Switch, Empty, cx, Select, Tabs } from "@/shared/ui"
 import type { ShareSource } from "@/shared/types"
 import {
   admit, createRoom, endRoom, joinRoom, leaveRoom, roomSession, setQuality, signalUrl, setResolution, startSharing, stopSharing, switchSource, unwatchPeer, useShare, watchPeer,
@@ -23,9 +23,7 @@ function ResolutionPick({ value, onChange }: { value: ResolutionId; onChange: (r
   return (
     <label className="row small" style={{ gap: 8 }} title="Automática: segue a qualidade e a rede. Fixa: a imagem mantém essa resolução e, se a rede apertar, diminui a taxa e os quadros por segundo.">
       Resolução
-      <select className="field" aria-label="Resolução" value={value} onChange={(e) => onChange(e.target.value as ResolutionId)}>
-        {RESOLUTIONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-      </select>
+      <Select label="Resolução" value={value} onChange={onChange} options={RESOLUTIONS.map((r) => ({ value: r.id, label: r.label }))} />
     </label>
   )
 }
@@ -44,11 +42,7 @@ export default function Share() {
   return (
     <div className="page">
       <PageHead title="Transmissão" desc="Uma sala privada como um canal de voz: todo mundo pode transmitir a própria tela e cada um escolhe o que assistir." />
-      <div className="tabs-line" role="tablist">
-        {([["room", "Sala"], ["server", "Servidor e conexão"]] as [Tab, string][]).map(([id, l]) => (
-          <button key={id} role="tab" type="button" aria-selected={tab === id} onClick={() => setTab(id)}>{l}</button>
-        ))}
-      </div>
+      <Tabs label="Transmissão" value={tab} onChange={setTab} tabs={[{ id: "room", label: "Sala" }, { id: "server", label: "Servidor e conexão" }]} />
       {!configured && tab !== "server" && (
         <div className="callout callout-warn" style={{ marginBottom: 14 }}>
           <span className="grow">A transmissão precisa de um servidor de sinalização (o seu, gratuito em Render/Fly.io). Configure o endereço para começar.</span>
@@ -133,6 +127,8 @@ function InRoom({ pick }: { pick: boolean }) {
   const sharing = r.share.phase !== "off"
   const tiles = r.watching.length + (sharing ? 1 : 0)
   return (
+    <div className="col cr" style={{ gap: 14 }}>
+    <StatusStrip />
     <div className="split" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 14, alignItems: "start" }}>
       <div className="col" style={{ gap: 14, minWidth: 0 }}>
         {r.signal !== "online" && <div className="callout callout-warn">{r.signal === "reconnecting" ? "Reconectando ao servidor… as telas abertas continuam." : "Sem servidor: as telas abertas continuam, mas ninguém novo entra."}</div>}
@@ -167,6 +163,35 @@ function InRoom({ pick }: { pick: boolean }) {
       </div>
       <Sidebar />
     </div>
+    </div>
+  )
+}
+
+const GRADE: Record<string, { t: string; c: string }> = { good: { t: "boa", c: "var(--ok)" }, fair: { t: "razoável", c: "var(--warn)" }, poor: { t: "fraca", c: "var(--bad)" } }
+/** faixa de status da sala (só leitura): sinal, pessoas, quem transmite, você no ar e qualidade */
+function StatusStrip() {
+  const r = useShare((s) => s.room)
+  const grade = useShare((s) => s.grade)
+  const now = useNow(1000)
+  const sig = r.signal === "online" ? { t: "Conectado", c: "var(--ok)" } : r.signal === "reconnecting" ? { t: "Reconectando", c: "var(--warn)" } : { t: "Sem servidor", c: "var(--bad)" }
+  const on = r.share.phase !== "off"
+  const cells: { k: string; v: React.ReactNode; dot?: string; pulse?: boolean }[] = [
+    { k: "Sala", v: <span className="num" style={{ letterSpacing: "0.1em" }}>{r.code || "—"}</span> },
+    { k: "Servidor", v: sig.t, dot: sig.c, pulse: r.signal === "reconnecting" },
+    { k: "Na sala", v: r.members.length },
+    { k: "Transmitindo", v: r.members.filter((m) => m.live).length },
+    { k: "Você", v: on ? <span className="num">{fmtTime((now.getTime() - r.share.startedAt) / 1000)}</span> : "fora do ar", dot: on ? "var(--live)" : "var(--dim)", pulse: on },
+    { k: "Conexão", v: r.watching.length || r.share.viewers.length ? GRADE[grade].t : "—", dot: r.watching.length || r.share.viewers.length ? GRADE[grade].c : undefined },
+  ]
+  return (
+    <div className="cr-strip au-card au-flat" role="status" aria-label="Status da sala">
+      {cells.map((c) => (
+        <div key={c.k} className="cr-cell">
+          <span className="cr-k">{c.k}</span>
+          <span className="cr-v">{c.dot && <i className={"cr-dot" + (c.pulse ? " cr-pulse" : "")} style={{ background: c.dot }} />}{c.v}</span>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -177,7 +202,8 @@ function ShareBar({ onPick, picking }: { onPick: () => void; picking: boolean })
   const sh = r.share
   if (sh.phase === "off") {
     return (
-      <div className="au-card row" style={{ padding: "12px 14px", gap: 12, flexWrap: "wrap" }}>
+      <div className="au-card cr-console cr-off">
+        <div className="cr-onair"><span className="cr-lamp" aria-hidden />Fora do ar</div>
         <div className="grow small au-muted" style={{ minWidth: 200 }}>{sh.error ? <span style={{ color: "var(--bad)" }}>{sh.error}</span> : "Mostre a sua tela para a sala. Cada pessoa decide se quer assistir."}</div>
         <button type="button" className="au-btn au-btn-primary" disabled={picking} onClick={onPick}><MonitorUp size={15} />Transmitir minha tela</button>
       </div>
@@ -185,18 +211,21 @@ function ShareBar({ onPick, picking }: { onPick: () => void; picking: boolean })
   }
   const st = sh.stats
   return (
-    <div className="au-card row" style={{ padding: "12px 14px", gap: 12, flexWrap: "wrap" }}>
-      <span className="au-live">Ao vivo · {fmtTime((now.getTime() - sh.startedAt) / 1000)}</span>
-      <div className="grow" style={{ minWidth: 140 }}>
+    <div className="au-card cr-console">
+      <div className="cr-onair"><span className="au-live">Ao vivo</span><span className="num cr-timer">{fmtTime((now.getTime() - sh.startedAt) / 1000)}</span></div>
+      <div className="grow cr-src" style={{ minWidth: 160 }}>
         <div className="truncate" style={{ fontWeight: 500 }}>{sh.phase === "capturing" ? "Capturando…" : sh.source?.name}</div>
         {sh.audioMode === "no-discord" && sh.audio && <span className="au-chip" style={{ marginRight: 6 }} title="O som da sua call no Discord não vai para quem assiste">{sh.discordExcluded ? "Som sem o Discord" : "Som do PC"}</span>}
         {sh.audioNote && <div className="tiny" style={{ color: "var(--warn)" }}>{sh.audioNote}</div>}
         <div className="tiny au-muted num">{sh.viewers.length} assistindo{st ? ` · ${st.width}×${st.height} · ${st.fps} fps · ${(st.kbps / 1000).toFixed(1)} Mbit/s${st.codec ? " · " + st.codec + (st.hardware ? " (placa)" : "") : ""}` : ""}</div>
       </div>
-      <Segmented label="Qualidade" value={sh.quality} onChange={(q) => void setQuality(q)} options={QUALITIES.map((q) => ({ value: q, label: PROFILES[q].label }))} />
-      <ResolutionPick value={sh.resolution} onChange={(r) => { void patch("share", { resolution: r }); void setResolution(r) }} />
-      <button type="button" className="au-btn au-btn-sm" onClick={onPick}><Repeat size={13} />Trocar tela</button>
-      <button type="button" className="au-btn au-btn-sm au-btn-danger" onClick={stopSharing}><Square size={11} />Parar</button>
+      <div className="cr-controls">
+        <Segmented label="Qualidade" value={sh.quality} onChange={(q) => void setQuality(q)} options={QUALITIES.map((q) => ({ value: q, label: PROFILES[q].label }))} />
+        <ResolutionPick value={sh.resolution} onChange={(r) => { void patch("share", { resolution: r }); void setResolution(r) }} />
+        <span className="cr-sep" aria-hidden />
+        <button type="button" className="au-btn au-btn-sm" onClick={onPick}><Repeat size={13} />Trocar tela</button>
+        <button type="button" className="au-btn au-btn-sm au-btn-danger" onClick={stopSharing}><Square size={11} />Parar</button>
+      </div>
     </div>
   )
 }
@@ -243,6 +272,7 @@ function StreamTile({ w, member, solo }: { w: Watch; member?: Member; solo: bool
       <div className="au-tile-tag">
         <span className="au-live">{name}</span>
         {member?.live && <span className="au-chip truncate" style={{ maxWidth: 180 }}>{member.live.label}</span>}
+        {w.phase === "watching" && st && <span className="au-chip" title={"Conexão " + GRADE[w.grade].t}><i className="cr-dot" style={{ background: GRADE[w.grade].c }} />{st.height}p</span>}
       </div>
       <div className="au-tile-bar">
         <span className="tiny num grow truncate" style={{ color: "rgba(255,255,255,.8)" }}>{st ? `${st.width}×${st.height} · ${st.fps} fps · ${(st.kbps / 1000).toFixed(1)} Mbit/s${st.rttMs != null ? " · " + st.rttMs + " ms" : ""}` : ""}</span>
@@ -270,6 +300,7 @@ function Sidebar() {
   return (
     <div className="col" style={{ gap: 14 }}>
       <div className="au-card" style={{ padding: 16 }}>
+        <div className="cr-head"><Lock size={12} />Acesso</div>
         <div className="tiny au-muted">Código da sala</div>
         <div className="au-score" style={{ fontSize: 30, letterSpacing: "0.12em", margin: "6px 0 12px" }} aria-label="Código da sala">{r.code || "—"}</div>
         <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
@@ -289,7 +320,7 @@ function Sidebar() {
 
       {owner && r.requests.length > 0 && (
         <div className="au-card" style={{ padding: 14, borderColor: "color-mix(in srgb, var(--warn) 40%, transparent)" }}>
-          <div className="h3" style={{ marginBottom: 6 }}>Pedindo para entrar</div>
+          <div className="cr-head" style={{ color: "var(--warn)" }}><Users size={12} />Pedindo para entrar ({r.requests.length})</div>
           {r.requests.map((q) => (
             <div key={q.peer} className="row" style={{ padding: "6px 0" }}>
               <Avatar name={q.name} />
@@ -302,12 +333,12 @@ function Sidebar() {
       )}
 
       <div className="au-card" style={{ padding: "12px 10px 8px" }}>
-        <div className="row" style={{ padding: "0 6px 6px" }}><Users size={14} className="au-muted" /><span className="h3 grow">Na sala ({r.members.length})</span></div>
+        <div className="cr-head" style={{ padding: "0 6px 4px" }}><Users size={12} /><span className="grow">Na sala ({r.members.length})</span></div>
         <div className="col" style={{ gap: 2 }}>
           {r.members.map((m) => {
             const me = m.peer === r.me
             return (
-              <div key={m.peer} className="row" style={{ padding: "6px", gap: 10, borderRadius: 10, opacity: m.away ? 0.55 : 1 }}>
+              <div key={m.peer} className="row cr-member" style={{ opacity: m.away ? 0.55 : 1 }}>
                 <Avatar name={m.name} live={!!m.live} />
                 <div className="grow" style={{ minWidth: 0 }}>
                   <div className="row" style={{ gap: 5 }}><span className="truncate" style={{ fontWeight: 500 }}>{m.name}{me ? " (você)" : ""}</span>{m.owner && <Crown size={12} color="var(--warn)" aria-label="cuida da sala" />}</div>
@@ -379,10 +410,7 @@ function SourcePanel({ title, onPick, onClose, live }: { title: string; onPick: 
             {prefs.audio && (
               <label className="row small" style={{ gap: 8 }} title="Tudo menos o Discord: quem assiste ouve o jogo, a música e o resto, mas não a sua call. Usa a captura por programa do Windows (10 versão 2004 ou mais novo, ou 11).">
                 Som
-                <select className="field" aria-label="Qual som" value={prefs.audioMode ?? "all"} onChange={(e) => void patch("share", { audioMode: e.target.value as "all" | "no-discord" })}>
-                  <option value="all">Tudo do PC</option>
-                  <option value="no-discord">Tudo menos o Discord</option>
-                </select>
+                <Select label="Qual som" value={(prefs.audioMode ?? "all") as "all" | "no-discord"} onChange={(v) => void patch("share", { audioMode: v })} options={[{ value: "all", label: "Tudo do PC" }, { value: "no-discord", label: "Tudo menos o Discord" }]} />
               </label>
             )}
             <label className="row small" style={{ gap: 8 }} title="Usa H.264 (NVENC, Quick Sync, AMF) quando existir: menos uso de processador.">

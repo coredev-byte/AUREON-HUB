@@ -3,16 +3,16 @@
 
 const SECTIONS = ["settings", "notch", "widgets", "profiles", "share"]
 
-const ACCENT = "#0B7BFA" // azul da marca Aureon
+const ACCENT = "#19C3FF" // ciano elétrico Aureon (o azul da marca continua nas opções)
 
 const DEFAULTS = {
   settings: {
     accent: ACCENT,
-    surface: "#0E0E10",
+    surface: "#0B0C0F",
     font: "inter",
     /** fonte dos números (relógios, placares) */
     numFont: "grotesk",
-    radius: 14,
+    radius: 12,
     reduceMotion: false,
     /** velocidade das animações: 0,6 (rápidas) a 1,6 (calmas) */
     animSpeed: 1,

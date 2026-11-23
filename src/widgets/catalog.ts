@@ -60,8 +60,16 @@ export const CATALOG: Record<WidgetType, WidgetDef> = {
     component: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.Weather }))),
   },
   media: {
-    type: "media", name: "Música", desc: "Spotify, YouTube Music e outros players do Windows, com capa e letra sincronizada.", size: { w: 380, h: 190 }, min: { w: 220, h: 96 }, interactive: true, bare: true,
-    fields: [], Settings: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.MusicOptions }))),
+    type: "media", name: "Música", desc: "Spotify, YouTube Music e outros players do Windows: capa que pulsa com o som, letra sincronizada e controles.", size: { w: 760, h: 270 }, min: { w: 260, h: 110 }, interactive: true, bare: true, glassable: true,
+    fields: [
+      { key: "look", label: "Estilo", kind: "select", default: "aureon", options: [{ value: "aureon", label: "Aureon (igual à aba Mídia do notch)" }, { value: "widgy", label: "Clássico (Widgy)" }] },
+      { key: "lyrics", label: "Mostrar a letra (widget largo)", kind: "toggle", default: true, when: { key: "look", value: "aureon" } },
+      { key: "tint", label: "Cor da capa no painel", kind: "toggle", default: true, when: { key: "look", value: "aureon" } },
+      { key: "app", label: "Player", kind: "select", default: "", when: { key: "look", value: "aureon" }, options: [
+        { value: "", label: "Automático" }, { value: "spotify", label: "Spotify" }, { value: "youtube", label: "YouTube Music" }, { value: "deezer", label: "Deezer" },
+        { value: "applemusic", label: "Apple Music" }, { value: "amazon", label: "Amazon Music" }, { value: "tidal", label: "TIDAL" }, { value: "chrome", label: "Chrome" }, { value: "msedge", label: "Edge" },
+      ] },
+    ], Settings: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.MusicOptions }))),
     component: lazy(() => import("./widgy/adapters").then((m) => ({ default: m.Music }))),
   },
   system: {

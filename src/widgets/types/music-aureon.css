@@ -1,0 +1,26 @@
+/* Música Aureon (MusicAureon.tsx): cores do painel derivadas da cor da capa (--mau-tint) */
+.mau {
+  position: absolute; inset: 0; border-radius: inherit; padding: 12px 14px; overflow: hidden; isolation: isolate;
+  --sh-fg: #fff; --sh-muted: rgba(255, 255, 255, 0.66); --sh-dim: rgba(255, 255, 255, 0.4); --sh-on-fg: #000;
+  --sh-accent: color-mix(in srgb, var(--mau-tint) 85%, #fff);
+  --sh-1: rgba(255, 255, 255, 0.06); --sh-2: rgba(255, 255, 255, 0.1); --sh-3: rgba(255, 255, 255, 0.16);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--mau-tint) 16%, #0c1018) 0%, #0a0d14 70%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 32px rgba(0, 0, 0, 0.35);
+  transition: background 600ms ease, border-color 600ms ease;
+}
+/* transparente: o papel de parede (desfocado pela camada de vidro) aparece, tingido pela capa */
+.mau-glass {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--mau-tint) 38%, rgba(12, 14, 22, 0.35)), color-mix(in srgb, var(--mau-tint) 22%, rgba(8, 10, 16, 0.5)));
+  border-color: color-mix(in srgb, var(--mau-tint) 35%, rgba(255, 255, 255, 0.12));
+  --sh-1: color-mix(in srgb, var(--mau-tint) 18%, rgba(255, 255, 255, 0.08));
+  --sh-2: color-mix(in srgb, var(--mau-tint) 26%, rgba(255, 255, 255, 0.12));
+  --sh-3: color-mix(in srgb, var(--mau-tint) 34%, rgba(255, 255, 255, 0.18));
+}
+.mau-solid { background: color-mix(in srgb, var(--mau-tint) 10%, #0b0d12); }
+.mau-clear { background: transparent; border-color: transparent; box-shadow: none; }
+.mau-clear .sh { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+.mau .sh-card { border-radius: 16px; }
+/* bem baixo: fica capa, título e controles (a barra de progresso sai para caber) */
+.mau[data-tiny="true"] .sh-progress { display: none; }
+.mau[data-tiny="true"] { padding-top: 8px; padding-bottom: 8px; }

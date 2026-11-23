@@ -1,4 +1,4 @@
-import { Component, Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react"
+import { useMemo, memo, Component, Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import { Check, Copy, GripVertical, Lock, LockOpen, Trash2, TriangleAlert } from "lucide-react"
 import { invoke, on } from "@/shared/bridge"
 import { patch, useSection } from "@/shared/state"
@@ -74,18 +74,22 @@ export function Layer() {
     return () => { window.removeEventListener("keydown", key); window.removeEventListener("pointerup", end) }
   }, [editing])
 
+  // dados do vidro estáveis entre renderizações (os quadros só redesenham quando algo deles muda)
+  const d = displays.find((x) => x.id === DISPLAY)
+  const blur = settings?.widgetBlur ?? 14, solid = (settings?.widgetBg ?? 0.88) >= 0.99
+  const glass = useMemo<GlassCtx>(() => ({
+    wp: wallpaper, blur, solid,
+    screen: d
+      ? { ox: d.workArea.x - d.bounds.x, oy: d.workArea.y - d.bounds.y, width: d.bounds.width, height: d.bounds.height, scale: d.scale }
+      : { ox: 0, oy: 0, width: area.width, height: area.height, scale: devicePixelRatio || 1 },
+  }), [wallpaper, blur, solid, d?.workArea.x, d?.workArea.y, d?.bounds.x, d?.bounds.y, d?.bounds.width, d?.bounds.height, d?.scale, area.width, area.height])
+
   if (!ws || !profiles || !settings) return null
   const profile = profiles.items.find((p) => p.id === ws.activeProfile) ?? profiles.items[0]
   const known = new Set(displays.map((d) => d.id))
   // widget de um monitor que foi desconectado aparece no principal (não some)
   const mine = (profile?.widgets ?? []).filter((w) => w.enabled && (w.display === DISPLAY || (PRIMARY && displays.length > 0 && !known.has(w.display))))
   const reduce = settings.reduceMotion || matchMedia("(prefers-reduced-motion: reduce)").matches
-  // onde esta janela (área de trabalho, sem a barra de tarefas) fica dentro do monitor inteiro
-  const d = displays.find((x) => x.id === DISPLAY)
-  const screen: Screen = d
-    ? { ox: d.workArea.x - d.bounds.x, oy: d.workArea.y - d.bounds.y, width: d.bounds.width, height: d.bounds.height, scale: d.scale }
-    : { ox: 0, oy: 0, width: area.width, height: area.height, scale: devicePixelRatio || 1 }
-  const glass = { wp: wallpaper, screen, blur: settings.widgetBlur ?? 14, solid: (settings.widgetBg ?? 0.88) >= 0.99 }
 
   return (
     <div className={"layer" + (editing ? " layer-editing" : "")}>
@@ -158,7 +162,14 @@ function Glass({ ctx, r, blur }: { ctx: GlassCtx; r: { x: number; y: number }; b
   )
 }
 
-function Frame({ w, editing, paused, area, glass }: { w: WidgetInstance; editing: boolean; paused: boolean; area: { width: number; height: number }; glass: GlassCtx }) {
+type FrameProps = { w: WidgetInstance; editing: boolean; paused: boolean; area: { width: number; height: number }; glass: GlassCtx }
+/**
+ * Um widget só redesenha quando os dados DELE mudam (a camada inteira recebe o perfil novo a cada alteração;
+ * sem isso, mexer num widget redesenhava todos, inclusive os com animação e gráficos).
+ */
+const Frame = memo(FrameInner, (a, b) => a.editing === b.editing && a.paused === b.paused && a.glass === b.glass
+  && a.area.width === b.area.width && a.area.height === b.area.height && (a.w === b.w || JSON.stringify(a.w) === JSON.stringify(b.w)))
+function FrameInner({ w, editing, paused, area, glass }: FrameProps) {
   const def = CATALOG[w.type]
   const [live, setLive] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const r = live ?? { x: w.x, y: w.y, w: w.w, h: w.h }

@@ -9,6 +9,7 @@ import { lineAt, useLyrics } from "@/shared/lyrics"
 import { bass, liveSpectrum, rafLoop, spectrum, useSpectrum } from "@/shared/spectrum"
 import { patch, useSection } from "@/shared/state"
 import type { MediaSession } from "@/shared/types"
+import "./media-panel.css"
 
 export const PLAYERS = [
   { id: "", label: "Automático" }, { id: "spotify", label: "Spotify" }, { id: "youtube", label: "YouTube Music" }, { id: "deezer", label: "Deezer" },
@@ -30,53 +31,72 @@ export function useNotchMedia() {
 
 export function CarbonoMediaTab() {
   const { m, pos, cmd } = useNotchMedia()
+  const player = useSection("notch")?.mediaSource ?? ""
+  return <MediaPanel m={m} pos={pos} cmd={cmd} cover={214} lyricsW={262} player={player} onPlayer={(id) => void patch("notch", { mediaSource: id })} />
+}
+
+type Cmd = (c: Parameters<typeof mediaCommand>[0], a?: number | boolean) => void
+/**
+ * Painel de música (aba Mídia do notch e widget Música no estilo Aureon): capa que pulsa com o som, título,
+ * progresso em onda, aleatório/anterior/tocar/próxima/repetir e, se couber, a letra com a escolha do player.
+ * As cores vêm das variáveis --sh-* de quem usa.
+ */
+export function MediaPanel({ m, pos, cmd, cover, lyricsW = 0, player, onPlayer, small = false, paused = false }: {
+  m: (MediaSession & { art: string | null }) | null; pos: number; cmd: Cmd; cover: number; lyricsW?: number
+  player: string; onPlayer: (id: string) => void; small?: boolean; paused?: boolean
+}) {
   // aleatório/repetir mudam na hora; o Windows confirma no próximo envio
   const [ov, setOv] = useState<{ shuffle?: boolean; repeat?: 0 | 1 | 2; at: number } | null>(null)
   const fresh = ov && performance.now() - ov.at < 2500 ? ov : null
   const shuffle = fresh?.shuffle ?? !!m?.shuffle
   const repeat = (fresh?.repeat ?? m?.repeat ?? 0) as 0 | 1 | 2
   const noCtl = "O player não permite isso pelo Windows"
+  const btn = small ? "sh-btn relative size-8" : "sh-btn relative size-10"
+  const ic = small ? 14 : 16
+  const cols = `${cover + (small ? 14 : 22)}px minmax(0,1fr)` + (lyricsW ? ` ${lyricsW}px` : "")
   return (
-    <div className="sh grid h-full gap-3" style={{ gridTemplateColumns: "236px minmax(0,1fr) 262px" }}>
+    <div className="sh grid h-full" style={{ gridTemplateColumns: cols, gap: small ? 8 : 12 }}>
       <div className="flex items-center justify-center">
-        <ReactiveCover art={m?.art} playing={!!m?.playing} size={214} />
+        <ReactiveCover art={m?.art} playing={!!m?.playing && !paused} size={cover} />
       </div>
       <div className="flex min-w-0 flex-col justify-center gap-1">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={(m?.title ?? "") + (m?.artist ?? "")} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.22 }} className="min-w-0">
-            <div className="truncate text-[22px] font-semibold tracking-[-.01em]">{m?.title ?? "Nada tocando"}</div>
-            <div className="truncate text-[13px]" style={{ color: "var(--sh-muted)" }}>{m?.artist || "Abra o Spotify ou outro player"}</div>
-            {m?.album && m.album !== m.title && <div className="truncate text-[12px]" style={{ color: "var(--sh-dim)" }}>{m.album}</div>}
+            <div className={cx("truncate font-semibold tracking-[-.01em]", small ? "text-[16px]" : "text-[22px]")}>{m?.title ?? "Nada tocando"}</div>
+            <div className={cx("truncate", small ? "text-[12px]" : "text-[13px]")} style={{ color: "var(--sh-muted)" }}>{m?.artist || "Abra o Spotify ou outro player"}</div>
+            {!small && m?.album && m.album !== m.title && <div className="truncate text-[12px]" style={{ color: "var(--sh-dim)" }}>{m.album}</div>}
           </motion.div>
         </AnimatePresence>
-        <div className="mt-4 flex items-center gap-3 text-[11px] tabular-nums" style={{ color: "var(--sh-muted)" }}>
+        <div className={cx("sh-progress flex items-center gap-3 text-[11px] tabular-nums", small ? "mt-2" : "mt-4")} style={{ color: "var(--sh-muted)" }}>
           <span className="w-8 text-right">{fmtTime(pos)}</span>
-          <WaveProgress value={m?.dur ? pos / m.dur : 0} playing={!!m?.playing} onSeek={m?.canSeek && m.dur ? (p) => cmd("seek", p * m.dur) : undefined} />
+          <WaveProgress value={m?.dur ? pos / m.dur : 0} playing={!!m?.playing && !paused} onSeek={m?.canSeek && m.dur ? (p) => cmd("seek", p * m.dur) : undefined} />
           <span className="w-8">{fmtTime(m?.dur ?? 0)}</span>
         </div>
-        <div className="mt-3 flex items-center gap-1.5">
-          <button type="button" className="sh-btn relative size-10" aria-label="Ordem aleatória" aria-pressed={shuffle}
+        <div className={cx("flex items-center gap-1.5", small ? "mt-1.5" : "mt-3")}>
+          <button type="button" className={btn} aria-label="Ordem aleatória" aria-pressed={shuffle}
             title={m?.canShuffle ? (shuffle ? "Ordem aleatória: ligada" : "Ordem aleatória: desligada") : noCtl}
             disabled={!m?.canShuffle} style={{ color: shuffle ? "var(--sh-accent)" : undefined, opacity: m?.canShuffle ? 1 : 0.35 }}
             onClick={() => { setOv({ ...fresh, shuffle: !shuffle, at: performance.now() }); cmd("shuffle", !shuffle) }}>
-            <Shuffle size={16} />{shuffle && <span className="absolute bottom-1 size-1 rounded-full" style={{ background: "var(--sh-accent)" }} />}
+            <Shuffle size={ic} />{shuffle && <span className="absolute bottom-1 size-1 rounded-full" style={{ background: "var(--sh-accent)" }} />}
           </button>
-          <button type="button" className="sh-btn size-10" aria-label="Anterior" disabled={!m || m.canPrev === false} onClick={() => cmd("prev")}><SkipBack size={17} fill="currentColor" /></button>
-          <PlayButton playing={!!m?.playing} disabled={!m} onClick={() => cmd("toggle")} />
-          <button type="button" className="sh-btn size-10" aria-label="Próxima" disabled={!m || m.canNext === false} onClick={() => cmd("next")}><SkipForward size={17} fill="currentColor" /></button>
-          <button type="button" className="sh-btn relative size-10" aria-label={REPEAT_LABEL[repeat]} aria-pressed={repeat !== 0}
+          <button type="button" className={btn} aria-label="Anterior" disabled={!m || m.canPrev === false} onClick={() => cmd("prev")}><SkipBack size={ic + 1} fill="currentColor" /></button>
+          <PlayButton playing={!!m?.playing} disabled={!m} onClick={() => cmd("toggle")} small={small} />
+          <button type="button" className={btn} aria-label="Próxima" disabled={!m || m.canNext === false} onClick={() => cmd("next")}><SkipForward size={ic + 1} fill="currentColor" /></button>
+          <button type="button" className={btn} aria-label={REPEAT_LABEL[repeat]} aria-pressed={repeat !== 0}
             title={m?.canRepeat ? REPEAT_LABEL[repeat] : noCtl}
             disabled={!m?.canRepeat} style={{ color: repeat ? "var(--sh-accent)" : undefined, opacity: m?.canRepeat ? 1 : 0.35 }}
             onClick={() => { const next = (repeat === 0 ? 2 : repeat === 2 ? 1 : 0) as 0 | 1 | 2; setOv({ ...fresh, repeat: next, at: performance.now() }); cmd("repeat", next) }}>
-            {repeat === 1 ? <Repeat1 size={16} /> : <Repeat size={16} />}{repeat !== 0 && <span className="absolute bottom-1 size-1 rounded-full" style={{ background: "var(--sh-accent)" }} />}
+            {repeat === 1 ? <Repeat1 size={ic} /> : <Repeat size={ic} />}{repeat !== 0 && <span className="absolute bottom-1 size-1 rounded-full" style={{ background: "var(--sh-accent)" }} />}
           </button>
         </div>
       </div>
-      <div className="sh-card flex min-h-0 flex-col">
-        <div className="flex items-center gap-2 px-4 pb-1 pt-3 text-[12px] font-semibold"><Music2 size={13} /> Letra</div>
-        <LyricsPane m={m} pos={pos} />
-        <PlayerChip m={m} />
-      </div>
+      {lyricsW > 0 && (
+        <div className="sh-card flex min-h-0 flex-col">
+          <div className="flex items-center gap-2 px-4 pb-1 pt-3 text-[12px] font-semibold"><Music2 size={13} /> Letra</div>
+          <LyricsPane m={m} pos={pos} />
+          <PlayerChip m={m} value={player} onPick={onPlayer} />
+        </div>
+      )}
     </div>
   )
 }
@@ -95,7 +115,7 @@ export function PlayButton({ playing, disabled, onClick, small }: { playing: boo
 }
 
 /** letra que acompanha a música: a linha que toca fica no meio; sem tempo marcado, rola pelo progresso */
-function LyricsPane({ m, pos }: { m: (MediaSession & { art: string | null }) | null; pos: number }) {
+export function LyricsPane({ m, pos }: { m: (MediaSession & { art: string | null }) | null; pos: number }) {
   const lyrics = useLyrics(m?.title, m?.artist, m?.dur, !!m)
   const lines = lyrics && lyrics.synced?.length ? lyrics.synced : null
   const plain = lyrics && !lines && lyrics.plain ? lyrics.plain.split(/\r?\n/) : null
@@ -138,9 +158,8 @@ function LyricsPane({ m, pos }: { m: (MediaSession & { art: string | null }) | n
   )
 }
 
-/** de qual player o notch mostra a música */
-function PlayerChip({ m }: { m: MediaSession | null }) {
-  const player = useSection("notch")?.mediaSource ?? ""
+/** de qual player o painel mostra a música */
+export function PlayerChip({ m, value: player, onPick }: { m: MediaSession | null; value: string; onPick: (id: string) => void }) {
   const [open, setOpen] = useState(false)
   const label = m ? appLabel(m.app) : PLAYERS.find((p) => p.id === player)?.label ?? "Automático"
   return (
@@ -156,7 +175,7 @@ function PlayerChip({ m }: { m: MediaSession | null }) {
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.14 }}
             className="absolute inset-x-0 bottom-full z-10 mb-1.5 max-h-[200px] overflow-auto rounded-2xl p-1" style={{ background: "var(--sh-3)", boxShadow: "0 12px 30px rgba(0,0,0,.45)" }}>
             {PLAYERS.map((p) => (
-              <button key={p.id} type="button" onClick={() => { void patch("notch", { mediaSource: p.id }); setOpen(false) }}
+              <button key={p.id} type="button" onClick={() => { onPick(p.id); setOpen(false) }}
                 className="flex w-full items-center justify-between rounded-xl px-3 py-1.5 text-left text-[12px] hover:bg-white/5" style={{ color: "var(--sh-fg)" }}>
                 {p.label}{player === p.id && <Check size={12} style={{ color: "var(--sh-accent)" }} />}
               </button>
@@ -186,7 +205,8 @@ export function ReactiveCover({ art, playing, size }: { art?: string | null; pla
   const path = useRef<SVGPathElement>(null)
   const cover = useRef<HTMLDivElement>(null)
   const glow = useRef<HTMLDivElement>(null)
-  const N = 72
+  // muitos traços finos em volta da capa inteira (como no vídeo de referência), cada um seguindo uma faixa do som
+  const N = 96
   const r0 = size * 0.36
   const clip = useMemo(() => `path("${scallop(r0 * 2)}")`, [r0])
   useEffect(() => {
@@ -225,7 +245,7 @@ export function ReactiveCover({ art, playing, size }: { art?: string | null; pla
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <div ref={glow} aria-hidden className="absolute rounded-full blur-2xl" style={{ inset: size / 2 - r0, background: "var(--sh-accent)", opacity: 0.15, willChange: "opacity" }} />
       <svg width={size} height={size} className="absolute inset-0" aria-hidden>
-        <path ref={path} stroke="var(--sh-accent)" strokeWidth={2.2} strokeLinecap="round" opacity={0.9} />
+        <path ref={path} stroke="var(--sh-accent)" strokeWidth={Math.max(1.4, size / 120)} strokeLinecap="round" opacity={0.9} />
       </svg>
       <div ref={cover} className="absolute will-change-transform" style={{ inset: size / 2 - r0 }}>
         <div className="relative h-full w-full overflow-hidden" style={{ clipPath: clip, background: "var(--sh-2)", animation: "vinyl-spin 30s linear infinite", animationPlayState: playing ? "running" : "paused" }}>

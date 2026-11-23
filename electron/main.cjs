@@ -57,7 +57,7 @@ function showMain(page, params) {
 function createMain() {
   const s = state()
   mainWin = new BrowserWindow({
-    width: 1200, height: 780, minWidth: 980, minHeight: 640, title: "Aureon Hub",
+    width: 1200, height: 780, minWidth: 800, minHeight: 560, title: "Aureon Hub",
     frame: false, show: false, backgroundColor: s.settings.surface,
     icon: path.join(__dirname, "..", "build", "icon.png"),
     // o motor da transmissão vive nesta página: não pode ser congelado quando a janela fica escondida

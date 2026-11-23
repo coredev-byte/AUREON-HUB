@@ -1,6 +1,6 @@
 import { RotateCcw } from "lucide-react"
 import { patch, useSection } from "@/shared/state"
-import { PageHead, Section, Segmented, Setting, Slider, Switch } from "@/shared/ui"
+import { PageHead, Section, Segmented, Setting, Slider, Switch, Select } from "@/shared/ui"
 import { NUM_FONTS, UI_FONTS, fmtClock } from "@/shared/theme"
 import { useNow } from "@/shared/hooks"
 import type { NumFont, Settings, UiFont } from "@/shared/types"
@@ -8,16 +8,17 @@ import "@/notch/notch.css"
 import "@/widgets/widgets.css"
 
 const ACCENTS = [
-  { c: "#0B7BFA", n: "Azul Aureon" }, { c: "#5AB0FF", n: "Céu" }, { c: "#22C3A6", n: "Turquesa" }, { c: "#4EC98A", n: "Verde" },
+  { c: "#19C3FF", n: "Ciano Aureon" }, { c: "#0B7BFA", n: "Azul Aureon" }, { c: "#5AB0FF", n: "Céu" }, { c: "#22C3A6", n: "Turquesa" }, { c: "#4EC98A", n: "Verde" },
   { c: "#E9B44C", n: "Âmbar" }, { c: "#FF7A45", n: "Laranja" }, { c: "#FF4655", n: "Vermelho Valorant" }, { c: "#F1B9C6", n: "Rosado" },
   { c: "#A78BFA", n: "Lavanda" }, { c: "#ECEBEE", n: "Grafite claro" },
 ]
 const SURFACES = [
-  { c: "#0E0E10", n: "Carbono" }, { c: "#000000", n: "Preto" }, { c: "#121418", n: "Grafite azulado" }, { c: "#141312", n: "Grafite quente" },
+  { c: "#0B0C0F", n: "Aureon" }, { c: "#0E0E10", n: "Carbono" }, { c: "#000000", n: "Preto" }, { c: "#121418", n: "Grafite azulado" }, { c: "#141312", n: "Grafite quente" },
   { c: "#0D1117", n: "Noite" }, { c: "#120E18", n: "Ameixa" }, { c: "#0E1410", n: "Musgo" }, { c: "#170D10", n: "Vinho" },
 ]
 /** combinações prontas (mudam só cores e fontes; o resto continua como você deixou) */
 const PRESETS: { id: string; name: string; set: Partial<Settings> }[] = [
+  { id: "aureon", name: "Aureon", set: { accent: "#19C3FF", surface: "#0B0C0F", font: "inter", numFont: "grotesk" } },
   { id: "carbono", name: "Carbono", set: { accent: "#0B7BFA", surface: "#0E0E10", font: "inter", numFont: "grotesk" } },
   { id: "noite", name: "Meia-noite", set: { accent: "#5AB0FF", surface: "#0D1117", font: "inter", numFont: "outfit" } },
   { id: "tatico", name: "Tático", set: { accent: "#FF4655", surface: "#0E0E10", font: "grotesk", numFont: "orbitron" } },
@@ -26,7 +27,7 @@ const PRESETS: { id: string; name: string; set: Partial<Settings> }[] = [
   { id: "ameixa", name: "Ameixa", set: { accent: "#A78BFA", surface: "#120E18", font: "outfit", numFont: "outfit" } },
 ]
 const DEFAULTS: Partial<Settings> = {
-  accent: "#0B7BFA", surface: "#0E0E10", font: "inter", numFont: "grotesk", radius: 14, reduceMotion: false, animSpeed: 1, textScale: 1, hour12: false,
+  accent: "#19C3FF", surface: "#0B0C0F", font: "inter", numFont: "grotesk", radius: 12, reduceMotion: false, animSpeed: 1, textScale: 1, hour12: false,
   widgetBg: 0.88, widgetBlur: 14, widgetBorder: true, widgetShadow: "soft", widgetRadius: 14, notchColor: "black", notchBorder: false,
 }
 
@@ -46,7 +47,7 @@ function Preview({ s }: { s: Settings }) {
           <div className="small muted" style={{ marginTop: 6 }}>{date.charAt(0).toUpperCase() + date.slice(1)}</div>
         </div>
       </div>
-      <div className="card" style={{ position: "absolute", right: 22, top: 56, width: 230, padding: 14 }}>
+      <div className="card preview-card" style={{ position: "absolute", right: 22, top: 56, width: 230, padding: 14 }}>
         <div className="h3">Janela do app</div>
         <div className="small muted" style={{ margin: "4px 0 10px" }}>Texto, botões e destaque.</div>
         <div className="row"><button type="button" className="btn btn-primary btn-sm">Principal</button><button type="button" className="btn btn-sm">Secundário</button></div>
@@ -94,14 +95,10 @@ export default function Personalize() {
 
       <Section title="Texto">
         <Setting title="Fonte da interface">
-          <select className="field" aria-label="Fonte da interface" value={s.font} onChange={(e) => set({ font: e.target.value as UiFont })} style={{ fontFamily: UI_FONTS[s.font].family }}>
-            {(Object.keys(UI_FONTS) as UiFont[]).map((k) => <option key={k} value={k}>{UI_FONTS[k].label}</option>)}
-          </select>
+          <Select label="Fonte da interface" value={s.font} onChange={(v) => set({ font: v })} options={(Object.keys(UI_FONTS) as UiFont[]).map((k) => ({ value: k, label: UI_FONTS[k].label }))} />
         </Setting>
         <Setting title="Fonte dos números" desc="Relógios, notch, placares e estatísticas.">
-          <select className="field" aria-label="Fonte dos números" value={s.numFont} onChange={(e) => set({ numFont: e.target.value as NumFont })}>
-            {(Object.keys(NUM_FONTS) as NumFont[]).map((k) => <option key={k} value={k}>{NUM_FONTS[k].label}</option>)}
-          </select>
+          <Select label="Fonte dos números" value={s.numFont} onChange={(v) => set({ numFont: v })} options={(Object.keys(NUM_FONTS) as NumFont[]).map((k) => ({ value: k, label: NUM_FONTS[k].label }))} />
         </Setting>
         <Setting title="Tamanho do texto" desc="Só a janela do app."><Slider label="Tamanho do texto" min={0.9} max={1.15} step={0.05} value={s.textScale} onChange={(v) => set({ textScale: v })} format={(v) => Math.round(v * 100) + "%"} /></Setting>
         <Setting title="Relógio"><Segmented label="Formato do relógio" value={s.hour12 ? "12" : "24"} onChange={(v) => set({ hour12: v === "12" })} options={[{ value: "24", label: "24 horas" }, { value: "12", label: "12 horas" }]} /></Setting>

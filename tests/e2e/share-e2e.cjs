@@ -75,7 +75,10 @@ async function main() {
     const share = async (p, audio = false, mode = "all") => {
       await p.getByRole("button", { name: "Transmitir minha tela" }).first().click()
       if (audio) await p.getByRole("switch", { name: "Som do PC" }).click()
-      if (audio) await p.getByLabel("Qual som").selectOption(mode)
+      if (audio) {
+        await p.getByRole("combobox", { name: "Qual som" }).click()
+        await p.getByRole("option", { name: mode === "no-discord" ? "Tudo menos o Discord" : "Tudo do PC" }).click()
+      }
       await p.getByRole("button", { name: /Tela inteira/ }).first().click()
       await p.getByRole("button", { name: "Começar a transmitir" }).click()
       await p.getByRole("button", { name: "Parar", exact: true }).waitFor({ timeout: 10000 })

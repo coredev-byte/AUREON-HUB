@@ -1,7 +1,7 @@
 import { Bell, Music2 } from "lucide-react"
 import { invoke } from "@/shared/bridge"
 import { patch, useSection } from "@/shared/state"
-import { PageHead, Section, Segmented, Setting, Slider, Switch } from "@/shared/ui"
+import { PageHead, Section, Segmented, Setting, Slider, Switch, Select } from "@/shared/ui"
 import { sizeOf, type Mode } from "@/notch/machine"
 import "@/notch/notch.css"
 
@@ -48,9 +48,7 @@ export default function NotchPage() {
         <Setting title="Hora em repouso"><Switch label="Hora em repouso" checked={ns.idleClock} onChange={(v) => set({ idleClock: v })} /></Setting>
         <Setting title="Música tocando" desc="Mostra capa e título quando algum player está tocando."><Switch label="Música tocando" checked={ns.showMedia} onChange={(v) => set({ showMedia: v })} /></Setting>
         <Setting title="Player preferido">
-          <select className="field" aria-label="Player preferido" value={ns.mediaSource} onChange={(e) => set({ mediaSource: e.target.value })}>
-            <option value="">Qualquer um</option><option value="spotify">Spotify</option><option value="youtube">YouTube Music</option><option value="deezer">Deezer</option><option value="chrome">Chrome</option><option value="msedge">Edge</option>
-          </select>
+          <Select label="Player preferido" value={ns.mediaSource} onChange={(v) => set({ mediaSource: v })} options={[{ value: "", label: "Qualquer um" }, { value: "spotify", label: "Spotify" }, { value: "youtube", label: "YouTube Music" }, { value: "deezer", label: "Deezer" }, { value: "chrome", label: "Chrome" }, { value: "msedge", label: "Edge" }]} />
         </Setting>
         <Setting title="Avisos" desc="Transmissão, pedidos para assistir e avisos do app. Pedidos e alertas aparecem mesmo silenciado."><Switch label="Avisos" checked={ns.notifications} onChange={(v) => set({ notifications: v })} /></Setting>
         <Setting title="Indicador sobre tela cheia" desc="Enquanto você transmite, uma pílula mínima (sem cliques) fica visível sobre jogos e vídeos em tela cheia."><Switch label="Indicador sobre tela cheia" checked={ns.fullscreenIndicator} onChange={(v) => set({ fullscreenIndicator: v })} /></Setting>

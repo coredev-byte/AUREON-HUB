@@ -1,7 +1,49 @@
-# Relatório da reconstrução: Widgy → Aureon Hub 0.5.4
+# Relatório da reconstrução: Widgy → Aureon Hub 0.6.0
 
 
 
+
+
+## 0.6.0 (pedido do usuário: widget de música igual à aba Mídia, variedade transparente e revisão completa de UI/UX e fluidez)
+
+- **Widget Música (estilo Aureon, padrão):**
+  - O mesmo painel da aba Mídia do notch, agora um componente único (`MediaPanel`) usado pelos dois: capa recortada cercada de 96 traços finos que seguem as faixas do som (como no vídeo de referência) e pulsam com o grave, título, artista e álbum, progresso em onda, aleatório/anterior/tocar/próxima/repetir e, no widget largo, a letra com a escolha do player.
+  - **Variedade transparente (Fundo › Vidro):** painel translúcido com o papel de parede desfocado por trás, tingido pela cor predominante da capa (lida num canvas de 24×24). Os detalhes, como traços e progresso, também usam essa cor.
+  - Adapta ao tamanho: largo (com letra), médio e pequeno. Abaixo de 140 px de altura a barra de progresso sai para os controles caberem.
+  - Opções: player, letra, cor da capa. O estilo clássico do Widgy continua disponível.
+- **Sistema de design:**
+  - Tokens únicos para superfícies, linhas, raios (7/9/12/16 px), alturas de controle (28/34/40 px), sombras em 3 níveis, anel de foco e movimento (curvas e durações).
+  - Destaque padrão em **ciano elétrico** (#19C3FF), com o tema pronto "Aureon". Quem já escolheu uma cor continua com a dela; o azul da marca segue nas opções.
+- **Menus e navegação:**
+  - Barra lateral com seções (Geral, Sistema) e pílula do item ativo que desliza entre os itens (só `transform`). Tem selo AO VIVO / sala, rodapé com status e versão, e modo compacto (só ícones, com dica ao passar o mouse) lembrado entre aberturas.
+  - Barra de título com o nome da página atual.
+  - Em janela estreita, o menu vira só ícones; abaixo de 760 px, vira uma barra inferior.
+- **Listas suspensas próprias:** os 8 menus nativos do Windows foram trocados por um seletor do app, com lista animada que abre para cima se não couber, teclado completo (setas, Home/End, Enter, Esc, digitação) e acessibilidade (combobox/listbox).
+- **Animações:**
+  - Abas com sublinhado que desliza.
+  - Botões segmentados com miolo que desliza.
+  - Troca de página com fade + deslize curto.
+  - Modal com entrada e saída animadas.
+  - Esqueletos de carregamento.
+  - Retorno ao apertar botões e itens.
+  - Tudo com `transform`/`opacity` e desligado com "reduzir animações".
+- **Transmissão (só visual; nenhuma ação, fluxo ou lógica mudou):**
+  - Faixa de status no estilo sala de controle: sala, servidor, pessoas, quem transmite, você no ar e conexão.
+  - Console de transmissão com lâmpada "Fora do ar"/"Ao vivo", cronômetro e controles agrupados.
+  - Painéis "Acesso", "Pedindo para entrar" e "Na sala" com cabeçalhos.
+  - Telas com selo de resolução e da qualidade da conexão, com entrada animada.
+- **Desempenho:**
+  - As páginas são baixadas em segundo plano logo depois que o app abre, então a troca de página não espera.
+  - Cada widget só redesenha quando os dados dele mudam. Antes, mexer num widget redesenhava todos.
+  - O vidro dos widgets é calculado uma vez e reaproveitado.
+- **Correções da auditoria:**
+  - Em telas estreitas, o conteúdo ficava espremido numa coluna de 64 px (uma regra de largura média vencia a de celular).
+  - Os interruptores da página Widgets ficavam separados dos seus rótulos.
+  - O selo de som esticava o console de transmissão.
+- **Conferido:**
+  - As 7 páginas em 1440, 1280, 1024, 768 e 390 px, sem erros de console e sem rolagem horizontal.
+  - Seletor por teclado, modal (abre, fecha com Esc), menu compacto, aba Mídia do notch e widget Música em 3 tamanhos.
+  - Testes: 81 unitários, ponta a ponta (28 verificações), TURN, smoke do Electron e clique real no notch.
 
 ## 0.5.4 (pedido do usuário: transmitir sem o som do Discord)
 

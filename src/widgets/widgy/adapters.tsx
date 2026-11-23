@@ -11,6 +11,7 @@ import "./compat/perf"
 import { lazy, Suspense } from "react"
 const WeatherAureon = lazy(() => import("../types/WeatherAureon"))
 const SportsAureon = lazy(() => import("../types/SportsAureon"))
+const MusicAureon = lazy(() => import("../types/MusicAureon"))
 
 const asW = (w: WidgetProps["w"]) => w as unknown as Widget
 /** aplica a opção geral "Fundo" (do Aureon) no ajuste equivalente do widget portado */
@@ -41,5 +42,7 @@ export function SportsOptions({ w, set }: SettingsProps) { return <SportsSetting
 export function TeamOptions({ w, set }: SettingsProps) { return <TeamSettings w={asW(w)} set={set} /> }
 export function ValAgentOptions({ w, set }: SettingsProps) { return <><ValAgentSettings w={asW(w)} set={set} /><ValBackgroundSettings w={asW(w)} set={set} /></> }
 
-export function Music({ w, update }: WidgetProps) { return <div className="widgy absolute inset-0 overflow-hidden" style={{ borderRadius: "inherit" }}><PcMusicWidget w={withBg(w)} update={update} /></div> }
-export function MusicOptions({ w, set }: SettingsProps) { return <PcMusicSettings w={asW(w)} set={set} /> }
+export function Music({ w, update, paused }: WidgetProps) {
+  if ((w.config.look ?? "aureon") === "aureon") return <Suspense fallback={null}><MusicAureon w={w} paused={paused} bg={w.bg ?? "default"} update={update} /></Suspense>
+  return <div className="widgy absolute inset-0 overflow-hidden" style={{ borderRadius: "inherit" }}><PcMusicWidget w={withBg(w)} update={update} /></div> }
+export function MusicOptions({ w, set }: SettingsProps) { return (w.config.look ?? "aureon") === "aureon" ? null : <PcMusicSettings w={asW(w)} set={set} /> }

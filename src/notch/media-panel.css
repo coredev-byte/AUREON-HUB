@@ -1,0 +1,9 @@
+/* peças do painel de música (aba Mídia do notch e widget Música Aureon); as cores vêm de --sh-* */
+.sh { color: var(--sh-fg); }
+.sh-card { background: var(--sh-1); border-radius: 18px; }
+.sh-btn { display: flex; align-items: center; justify-content: center; border-radius: 12px; color: var(--sh-muted); border: 0; padding: 0; background: transparent; transition: background var(--t-fast), color var(--t-fast), transform var(--t-fast); }
+.sh-btn:hover { background: var(--sh-2); color: var(--sh-fg); }
+.sh-btn:active { transform: scale(.92); }
+.sh-btn:disabled { pointer-events: none; }
+@keyframes vinyl-spin { to { transform: rotate(360deg); } }
+:root[data-motion="reduce"] .sh [style*="vinyl-spin"] { animation: none !important; }

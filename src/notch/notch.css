@@ -90,14 +90,7 @@
   --sh-1: color-mix(in srgb, var(--nbg) 92%, #fff); --sh-2: color-mix(in srgb, var(--nbg) 86%, #fff); --sh-3: color-mix(in srgb, var(--nbg) 78%, #fff);
   --sh-accent: var(--accent);
 }
-.sh { color: var(--sh-fg); }
-.sh-card { background: var(--sh-1); border-radius: 18px; }
-.sh-btn { display: flex; align-items: center; justify-content: center; border-radius: 12px; color: var(--sh-muted); border: 0; padding: 0; background: transparent; transition: background var(--t-fast), color var(--t-fast), transform var(--t-fast); }
-.sh-btn:hover { background: var(--sh-2); color: var(--sh-fg); }
-.sh-btn:active { transform: scale(.92); }
-.sh-btn:disabled { pointer-events: none; }
-@keyframes vinyl-spin { to { transform: rotate(360deg); } }
-:root[data-motion="reduce"] .n-panel [style*="vinyl-spin"] { animation: none !important; }
+
 
 /* botões dentro do notch: sem a borda/fundo padrão do navegador (o notch não usa o reset do Tailwind) */
 @layer base { .notch button { border: 0; background: transparent; padding: 0; color: inherit; } }

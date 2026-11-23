@@ -5,7 +5,7 @@ import {
 } from "lucide-react"
 import { invoke } from "@/shared/bridge"
 import { patch, useSection } from "@/shared/state"
-import { PageHead, Segmented, Setting, Slider, Switch, cx } from "@/shared/ui"
+import { PageHead, Segmented, Setting, Slider, Switch, cx, Select, Tabs } from "@/shared/ui"
 import type { DisplayInfo, WidgetBg, WidgetInstance, WidgetType } from "@/shared/types"
 import { CATALOG } from "@/widgets/catalog"
 import { addWidget, createProfile, deleteProfile, duplicateWidget, removeWidget, renameProfile, updateWidget } from "@/widgets/profiles"
@@ -53,17 +53,14 @@ export default function Widgets() {
 
       <div className="card card-pad row" style={{ marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
         <span className="label">Perfil</span>
-        <select className="field" value={profile.id} aria-label="Perfil ativo" onChange={(e) => { void patch("widgets", { activeProfile: e.target.value }); setSel(null) }}>
-          {profiles.items.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.widgets.length})</option>)}
-        </select>
+        <Select label="Perfil ativo" value={profile.id} onChange={(v) => { void patch("widgets", { activeProfile: v }); setSel(null) }} options={profiles.items.map((p) => ({ value: p.id, label: `${p.name} (${p.widgets.length})` }))} />
         <input className="field" style={{ width: 170 }} defaultValue={profile.name} key={profile.id} aria-label="Nome do perfil" onBlur={(e) => renameProfile(profile.id, e.target.value)} />
         <button type="button" className="btn btn-sm" onClick={() => createProfile("Novo perfil")}><Plus size={12} />Novo</button>
         <button type="button" className="btn btn-sm" onClick={() => createProfile(profile.name + " (cópia)", profile.id)}><Copy size={12} />Duplicar</button>
         <button type="button" className="btn btn-ghost btn-sm" disabled={profiles.items.length <= 1} onClick={() => deleteProfile(profile.id)}><Trash2 size={12} />Excluir</button>
         <span className="grow" />
-        <span className="small muted">Mostrar widgets</span><Switch label="Mostrar widgets" checked={ws.enabled} onChange={(v) => void patch("widgets", { enabled: v })} />
-        <span className="small muted" title="Jogo, vídeo ou apresentação em tela cheia: os widgets daquele monitor somem e param de atualizar">Esconder em tela cheia</span>
-        <Switch label="Esconder em tela cheia" checked={ws.hideFullscreen} onChange={(v) => void patch("widgets", { hideFullscreen: v })} />
+        <span className="row small muted" style={{ gap: 8 }}>Mostrar widgets<Switch label="Mostrar widgets" checked={ws.enabled} onChange={(v) => void patch("widgets", { enabled: v })} /></span>
+        <span className="row small muted" style={{ gap: 8 }} title="Jogo, vídeo ou apresentação em tela cheia: os widgets daquele monitor somem e param de atualizar">Esconder em tela cheia<Switch label="Esconder em tela cheia" checked={ws.hideFullscreen} onChange={(v) => void patch("widgets", { hideFullscreen: v })} /></span>
       </div>
 
       {!profile.widgets.length ? (
@@ -113,12 +110,9 @@ function Editor({ w, displays, onRemoved }: { w: WidgetInstance; displays: Displ
         <button type="button" className="icon-btn" title="Duplicar" aria-label="Duplicar" onClick={() => duplicateWidget(w.id)}><Copy size={15} /></button>
         <button type="button" className="icon-btn" title="Remover" aria-label="Remover" onClick={() => { removeWidget(w.id); onRemoved() }}><Trash2 size={15} /></button>
       </div>
-      <div className="tabs-line" role="tablist" style={{ padding: "0 10px", margin: "10px 0 0" }}>
-        {hasContent && <button role="tab" type="button" aria-selected={t === "content"} onClick={() => setTab("content")}>Conteúdo</button>}
-        <button role="tab" type="button" aria-selected={t === "look"} onClick={() => setTab("look")}>Aparência</button>
-        <button role="tab" type="button" aria-selected={t === "place"} onClick={() => setTab("place")}>Tamanho e posição</button>
-      </div>
-      <div style={{ padding: "6px 16px 16px" }}>
+      <Tabs label="Opções do widget" className="tabs-editor" value={t} onChange={setTab}
+        tabs={[...(hasContent ? [{ id: "content" as Tab, label: "Conteúdo" }] : []), { id: "look" as Tab, label: "Aparência" }, { id: "place" as Tab, label: "Tamanho e posição" }]} />
+      <div key={t} className="fade-in" style={{ padding: "6px 16px 16px" }}>
         {t === "content" && <Content w={w} />}
         {t === "look" && <Look w={w} />}
         {t === "place" && <Place w={w} displays={displays} />}
@@ -137,7 +131,7 @@ function Content({ w }: { w: WidgetInstance }) {
             ? <Switch label={f.label} checked={(w.config[f.key] as boolean) ?? f.default} onChange={(v) => updateWidget(w.id, { config: { [f.key]: v } })} />
             : f.kind === "text"
               ? <input className="field" style={{ width: 260 }} aria-label={f.label} placeholder={f.placeholder} defaultValue={(w.config[f.key] as string) ?? f.default} onBlur={(e) => updateWidget(w.id, { config: { [f.key]: e.target.value.trim().slice(0, 80) } })} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur() }} />
-              : <select className="field" aria-label={f.label} value={(w.config[f.key] as string) ?? f.default} onChange={(e) => updateWidget(w.id, { config: { [f.key]: e.target.value } })}>{f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>}
+              : <Select label={f.label} value={(w.config[f.key] as string) ?? f.default} onChange={(v) => updateWidget(w.id, { config: { [f.key]: v } })} options={f.options} />}
         </Setting>
       ))}
       {def.Settings && (
@@ -214,9 +208,7 @@ function Place({ w, displays }: { w: WidgetInstance; displays: DisplayInfo[] }) 
       <Setting title="Travar" desc="Impede mover ou redimensionar sem querer."><Switch label="Travar posição" checked={w.locked} onChange={(v) => updateWidget(w.id, { locked: v })} /></Setting>
       {displays.length > 1 && (
         <Setting title="Monitor">
-          <select className="field" aria-label="Monitor" value={w.display} onChange={(e) => updateWidget(w.id, { display: e.target.value, x: 48, y: 48 })}>
-            {displays.map((d, i) => <option key={d.id} value={d.id}>{d.primary ? "Principal" : `Monitor ${i + 1}`} · {d.bounds.width}×{d.bounds.height}</option>)}
-          </select>
+          <Select label="Monitor" value={w.display} onChange={(v) => updateWidget(w.id, { display: v, x: 48, y: 48 })} options={displays.map((d, i) => ({ value: d.id, label: `${d.primary ? "Principal" : `Monitor ${i + 1}`} · ${d.bounds.width}×${d.bounds.height}` }))} />
         </Setting>
       )}
     </>
@@ -224,15 +216,18 @@ function Place({ w, displays }: { w: WidgetInstance; displays: DisplayInfo[] }) 
 }
 
 function Catalog({ onPick, onClose }: { onPick: (t: WidgetType) => void; onClose: () => void }) {
+  // fecha com animação de saída (160 ms) antes de sair da tela
+  const [closing, setClosing] = useState(false)
+  const close = () => { if (closing) return; setClosing(true); setTimeout(onClose, 150) }
   useEffect(() => {
-    const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") close() }
     addEventListener("keydown", k)
     return () => removeEventListener("keydown", k)
-  }, [])
+  }, [closing])
   return (
-    <div role="dialog" aria-label="Adicionar widget" onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "grid", placeItems: "center", zIndex: 50, padding: 24 }}>
-      <div className="card fade-in" onClick={(e) => e.stopPropagation()} style={{ width: "min(860px, 100%)", maxHeight: "85vh", overflow: "auto", padding: 20 }}>
-        <div className="row" style={{ marginBottom: 6 }}><h2 className="h2 grow">Adicionar widget</h2><button type="button" className="icon-btn" aria-label="Fechar" onClick={onClose}><X size={16} /></button></div>
+    <div role="dialog" aria-modal="true" aria-label="Adicionar widget" onClick={close} className={"modal-back" + (closing ? " modal-closing" : "")}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="row" style={{ marginBottom: 6 }}><h2 className="h2 grow">Adicionar widget</h2><button type="button" className="icon-btn" aria-label="Fechar" onClick={close}><X size={16} /></button></div>
         <p className="small muted" style={{ margin: "0 0 14px" }}>Ele aparece num espaço livre da área de trabalho. Depois é só ajustar aqui ou arrastar.</p>
         {GROUPS.map((g) => (
           <Group key={g.title} title={g.title}>
