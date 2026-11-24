@@ -11,7 +11,7 @@ const INVOKE = new Set([
   "notch:interactive", "notch:menu", "widgets:interactive", "widgets:drag-start", "widgets:drag-end", "widgets:drag-cancel",
   "app:open", "app:info", "app:metrics", "app:external", "app:quit", "win:cmd",
   "update:get", "update:check", "update:download", "update:install",
-  "net:text", "sports:get", "sports:teams", "sports:standings", "sports:basket", "sports:f1", "sports:match", "team:search", "team:card", "valorant:agent", "sysaudio:viz", "sysaudio:start", "sysaudio:stop", "wallpaper:get",
+  "net:text", "sports:get", "sports:teams", "sports:standings", "sports:basket", "sports:f1", "sports:match", "team:search", "team:card", "valorant:agent", "sysaudio:viz", "sysaudio:start", "sysaudio:stop", "wallpaper:get", "wallpaper:refresh",
 ])
 const EVENTS = new Set([
   "store:changed", "media:state", "system:state", "weather:state", "games:state", "fs:state",

@@ -8,6 +8,7 @@ import { patch, useSection } from "@/shared/state"
 import { PageHead, Segmented, Setting, Slider, Switch, cx, Select, Tabs } from "@/shared/ui"
 import type { DisplayInfo, WidgetBg, WidgetInstance, WidgetType } from "@/shared/types"
 import { CATALOG } from "@/widgets/catalog"
+import { useWallpaper } from "@/shared/wallpaper"
 import { addWidget, createProfile, deleteProfile, duplicateWidget, removeWidget, renameProfile, updateWidget } from "@/widgets/profiles"
 import { useNav } from "../nav"
 
@@ -55,7 +56,7 @@ export default function Widgets() {
         <span className="label">Perfil</span>
         <Select label="Perfil ativo" value={profile.id} onChange={(v) => { void patch("widgets", { activeProfile: v }); setSel(null) }} options={profiles.items.map((p) => ({ value: p.id, label: `${p.name} (${p.widgets.length})` }))} />
         <input className="field" style={{ width: 170 }} defaultValue={profile.name} key={profile.id} aria-label="Nome do perfil" onBlur={(e) => renameProfile(profile.id, e.target.value)} />
-        <button type="button" className="btn btn-sm" onClick={() => createProfile("Novo perfil")}><Plus size={12} />Novo</button>
+        <button type="button" className="btn" style={{ height: 26, padding: "0 10px", fontSize: 12 }} onClick={() => createProfile("Novo perfil")}><Plus size={12} />Novo</button>
         <button type="button" className="btn btn-sm" onClick={() => createProfile(profile.name + " (cópia)", profile.id)}><Copy size={12} />Duplicar</button>
         <button type="button" className="btn btn-ghost btn-sm" disabled={profiles.items.length <= 1} onClick={() => deleteProfile(profile.id)}><Trash2 size={12} />Excluir</button>
         <span className="grow" />
@@ -152,12 +153,32 @@ const BG_HELP: Record<WidgetBg, string> = {
   none: "Sem caixa nenhuma: só o conteúdo, com uma sombra leve no texto para continuar legível.",
 }
 
+/** o que o vidro está usando de verdade agora (e por que não desfoca, quando não dá) */
+function GlassStatus() {
+  const wp = useWallpaper()
+  const [busy, setBusy] = useState(false)
+  const text = !wp ? "Lendo o papel de parede…"
+    : wp.kind === "image" ? "Usando seu papel de parede, desfocado por trás do widget."
+    : wp.kind === "color" ? "Seu fundo é uma cor sólida: o vidro usa essa cor."
+    : "Sem desfoque agora (" + wp.reason.replace(/\.$/, "") + "). O widget fica translúcido, mostrando a área de trabalho por trás."
+  return (
+    <div className="mt-2 flex items-center gap-3 text-[12px]" style={{ color: wp && wp.kind === "none" ? "var(--warn)" : "var(--muted)" }} role="status">
+      <span className="min-w-0 flex-1">{text}</span>
+      {wp?.kind !== "image" && (
+        <button type="button" className="btn btn-sm" disabled={busy} onClick={() => { setBusy(true); void invoke("wallpaper:refresh").catch(() => {}).finally(() => setBusy(false)) }}>
+          {busy ? "Lendo…" : "Ler de novo"}
+        </button>
+      )}
+    </div>
+  )
+}
+
 function Look({ w }: { w: WidgetInstance }) {
   const def = CATALOG[w.type]
   const bg = (w.bg ?? "default") as WidgetBg
   return (
     <>
-      <Setting title="Fundo" desc={BG_HELP[bg] + (def.bare && bg !== "none" && bg !== "default" ? " Este widget desenha o próprio fundo; o ajuste fino fica em Conteúdo." : "")}>
+      <Setting title="Fundo" desc={<>{BG_HELP[bg] + (def.bare && bg !== "none" && bg !== "default" ? " Este widget desenha o próprio fundo; o ajuste fino fica em Conteúdo." : "")}{bg === "glass" && <GlassStatus />}</>}>
         <Segmented label="Fundo" value={bg} onChange={(v) => updateWidget(w.id, { bg: v })} options={[{ value: "default", label: "Padrão" }, { value: "glass", label: "Vidro" }, { value: "solid", label: "Sólido" }, { value: "none", label: "Sem fundo" }]} />
       </Setting>
       <Setting title="Transparência" desc="O widget inteiro (conteúdo e fundo)."><Slider label="Opacidade" min={0.2} max={1} step={0.05} value={w.opacity} onChange={(v) => updateWidget(w.id, { opacity: v })} format={(v) => Math.round(v * 100) + "%"} /></Setting>

@@ -5,6 +5,25 @@
 
 
 
+## 0.7.1 (pedido do usuário: vidro translúcido, sair da tela cheia na transmissão e capa unida às ondas)
+
+**Vidro translúcido**
+- Causa: com o vidro ligado, o fundo do widget cobria cerca de 60% a 78% do papel de parede desfocado (Música e cartões Aureon de clima/esportes), então parecia um fundo escuro e opaco. Quando o app não consegue ler o papel de parede (papel de parede animado como Wallpaper Engine/Lively, ou arquivo ilegível), o fundo reserva era igualmente opaco.
+- Correção: camadas do vidro bem mais leves (Música ~30%, cartões Aureon 30–40%, widgets comuns 22% sobre o desfoque e 38% sem desfoque), com sombra leve no texto para continuar legível.
+- Em Widgets › (widget) › Fundo › Vidro, aparece o que o vidro está usando de verdade: "Usando seu papel de parede", "cor sólida" ou "Sem desfoque agora (motivo)". Nesse último caso há o botão "Ler de novo" (novo canal `wallpaper:refresh`).
+- Limite honesto: com papel de parede animado, o Windows não expõe a imagem que está na tela; o widget fica translúcido, mas sem desfoque.
+
+**Transmissão: sair da tela cheia**
+- O botão "Tela cheia" só entrava em tela cheia; os controles ficavam escondidos e não havia como sair pela interface.
+- Agora o mesmo botão alterna ("Tela cheia" ↔ "Sair da tela cheia"), há um botão fixo "Sair da tela cheia · Esc" no canto, Esc e clique duplo saem, e os controles aparecem ao mexer o mouse e somem depois de 2,5 s parado. O estado acompanha a saída feita pelo sistema (aviso de mudança + redimensionamento).
+- Teste ponta a ponta novo: entra e sai pelo botão e pelo Esc.
+
+**Capa e ondas como uma peça só**
+- A borda da capa é redesenhada a cada quadro pelo mesmo espectro dos traços (contorno suave, vizinhos somados e um pouco de memória para não tremer) e cada traço nasce exatamente dessa borda. A imagem gira por dentro do contorno.
+- Pausado, volta devagar ao contorno ondulado calmo; com "reduzir movimento" do Windows, fica parado. O ritmo continua limitado a ~33 quadros por segundo e para quando a janela está escondida.
+
+Verificação: lint, 86 testes unitários, transmissão ponta a ponta (com a tela cheia), TURN, Electron (sem erros) e clique real no notch passando; capturas do vidro com papel de parede de teste e da capa tocando/pausada.
+
 ## 0.7.0 (pedido do usuário: visual do Discord na transmissão e senha no lugar do código)
 
 - **Sala com nome e senha:**

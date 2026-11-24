@@ -11,12 +11,13 @@
 }
 /* transparente: o papel de parede (desfocado pela camada de vidro) aparece, tingido pela capa */
 .mau-glass {
-  background: linear-gradient(160deg, color-mix(in srgb, var(--mau-tint) 38%, rgba(12, 14, 22, 0.35)), color-mix(in srgb, var(--mau-tint) 22%, rgba(8, 10, 16, 0.5)));
+  background: linear-gradient(160deg, color-mix(in srgb, var(--mau-tint) 18%, rgba(10, 12, 18, 0.14)), color-mix(in srgb, var(--mau-tint) 10%, rgba(8, 10, 16, 0.26)));
   border-color: color-mix(in srgb, var(--mau-tint) 35%, rgba(255, 255, 255, 0.12));
   --sh-1: color-mix(in srgb, var(--mau-tint) 18%, rgba(255, 255, 255, 0.08));
   --sh-2: color-mix(in srgb, var(--mau-tint) 26%, rgba(255, 255, 255, 0.12));
   --sh-3: color-mix(in srgb, var(--mau-tint) 34%, rgba(255, 255, 255, 0.18));
 }
+.mau-glass .sh { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); }
 .mau-solid { background: color-mix(in srgb, var(--mau-tint) 10%, #0b0d12); }
 .mau-clear { background: transparent; border-color: transparent; box-shadow: none; }
 .mau-clear .sh { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }

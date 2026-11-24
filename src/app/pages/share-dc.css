@@ -166,3 +166,15 @@
 .dc-live-xs { height: 15px; padding: 0 4px; font-size: 9.5px; margin-right: 6px; vertical-align: 1px; }
 .dc-member .grow { min-width: 60px; }
 .dc-member .dc-btn-sm { padding: 0 10px; }
+
+/* tela cheia de um bloco: imagem inteira, controles ao mexer o mouse e botão fixo para sair */
+.dc-tile:fullscreen, .dc-fs { border-radius: 0; aspect-ratio: auto; width: 100vw; height: 100vh; background: #000; }
+.dc-fs { cursor: none; }
+.dc-fs.dc-fs-awake { cursor: default; }
+.dc-fs .dc-tile-ctl, .dc-fs .dc-tile-name, .dc-fs-exit { opacity: 0; transition: opacity var(--t) var(--ease), transform var(--t) var(--ease); }
+.dc-fs.dc-fs-awake .dc-tile-ctl, .dc-fs.dc-fs-awake .dc-tile-name, .dc-fs.dc-fs-awake .dc-fs-exit { opacity: 1; transform: none; }
+.dc-fs .dc-tile-ctl { right: 20px; bottom: 20px; padding: 4px; }
+.dc-fs .dc-tile-name { left: 20px; bottom: 20px; height: 30px; font-size: 14px; }
+.dc-fs-exit { position: absolute; top: 20px; right: 20px; z-index: 3; display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px; border-radius: 8px; background: rgba(0, 0, 0, 0.7); color: #fff; font-size: 14px; font-weight: 500; }
+.dc-fs-exit:hover { background: rgba(0, 0, 0, 0.85); }
+.dc-fs-exit .dc-dim { font-size: 12px; padding: 1px 6px; border-radius: 4px; background: rgba(255, 255, 255, 0.12); }

@@ -187,68 +187,80 @@ export function PlayerChip({ m, value: player, onPick }: { m: MediaSession | nul
   )
 }
 
-/** contorno de "flor recortada" (círculo com ondas suaves) para a capa */
-function scallop(d: number, waves = 9, depth = 0.045) {
-  const r = d / 2
-  let p = ""
-  for (let i = 0; i <= 180; i++) {
-    const a = (i / 180) * Math.PI * 2
-    const rr = r * (1 - depth + depth * Math.cos(waves * a))
-    p += (i ? "L" : "M") + (r + Math.cos(a) * rr).toFixed(1) + " " + (r + Math.sin(a) * rr).toFixed(1)
-  }
-  return p + "Z"
+/** contorno fechado e suave que passa por pontos em volta de um centro (curvas pelos pontos médios) */
+function blob(cx: number, cy: number, radii: Float32Array) {
+  const n = radii.length
+  const px = (i: number) => cx + Math.cos((i / n) * Math.PI * 2 + Math.PI / 2) * radii[i % n]
+  const py = (i: number) => cy + Math.sin((i / n) * Math.PI * 2 + Math.PI / 2) * radii[i % n]
+  let d = `M${((px(0) + px(1)) / 2).toFixed(1)} ${((py(0) + py(1)) / 2).toFixed(1)}`
+  for (let i = 1; i <= n; i++) d += `Q${px(i).toFixed(1)} ${py(i).toFixed(1)} ${((px(i) + px(i + 1)) / 2).toFixed(1)} ${((py(i) + py(i + 1)) / 2).toFixed(1)}`
+  return d + "Z"
 }
 
-/** capa com uma coroa que segue o espectro do som do PC e pulsa com o grave (sem som capturado, ritmo suave) */
+/**
+ * capa e coroa de som como uma peça só: a borda da capa é redesenhada pelo espectro a cada quadro
+ * (cresce onde a faixa de som está forte) e cada traço nasce exatamente dessa borda.
+ * Pausado, volta devagar ao contorno ondulado calmo. Sem som capturado, segue um ritmo suave.
+ */
 export function ReactiveCover({ art, playing, size }: { art?: string | null; playing: boolean; size: number }) {
   useSpectrum(playing)
-  const path = useRef<SVGPathElement>(null)
-  const cover = useRef<HTMLDivElement>(null)
+  const ticks = useRef<SVGPathElement>(null)
+  const shape = useRef<HTMLDivElement>(null)
   const glow = useRef<HTMLDivElement>(null)
-  // muitos traços finos em volta da capa inteira (como no vídeo de referência), cada um seguindo uma faixa do som
   const N = 96
-  const r0 = size * 0.36
-  const clip = useMemo(() => `path("${scallop(r0 * 2)}")`, [r0])
+  const r0 = size * 0.34
+  const reduce = useMemo(() => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches, [])
   useEffect(() => {
-    let energy = playing ? 1 : 0
+    let energy = playing && !reduce ? 1 : 0
     const t0 = performance.now()
     let last = 0
+    const raw = new Float32Array(N), sm = new Float32Array(N), edge = new Float32Array(N)
+    const c = size / 2
+    const gap = Math.max(1.5, size / 110)
     const draw = () => {
       const now = performance.now()
       if (now - last < 30) return
       last = now
-      energy += ((playing ? 1 : 0) - energy) * 0.15
+      energy += ((playing && !reduce ? 1 : 0) - energy) * 0.15
       const live = liveSpectrum()
       const t = (now - t0) / 1000
-      let d = ""
       for (let i = 0; i < N; i++) {
         const half = i < N / 2 ? i : N - 1 - i
-        const a = (i / N) * Math.PI * 2 + Math.PI / 2
-        const v = live
+        raw[i] = live
           ? spectrum.bands[Math.min(47, 2 + Math.round((half / (N / 2)) * 34))]
           : Math.max(0, 0.5 + 0.5 * Math.sin(i * 0.9 + t * 3.1) * Math.sin(i * 0.37 - t * 1.7) + 0.25 * Math.sin(i * 2.3 + t * 5.3)) * 0.6
-        const len = 2 + v * size * 0.12 * energy
-        const x1 = size / 2 + Math.cos(a) * (r0 + 5), y1 = size / 2 + Math.sin(a) * (r0 + 5)
-        const x2 = size / 2 + Math.cos(a) * (r0 + 5 + len), y2 = size / 2 + Math.sin(a) * (r0 + 5 + len)
-        d += `M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`
       }
-      path.current?.setAttribute("d", d)
       const b = live ? bass() : 0.35 + 0.25 * Math.sin(t * 4.2)
-      if (cover.current) cover.current.style.transform = `scale(${(0.96 + 0.04 * energy + 0.045 * b * energy).toFixed(4)})`
+      let d = ""
+      for (let i = 0; i < N; i++) {
+        // vizinhos juntos (a borda ondula em vez de serrilhar) e um pouco de memória (sem tremedeira)
+        const v = (raw[(i + N - 2) % N] + 2 * raw[(i + N - 1) % N] + 3 * raw[i] + 2 * raw[(i + 1) % N] + raw[(i + 2) % N]) / 9
+        sm[i] += (v - sm[i]) * 0.55
+        const a = (i / N) * Math.PI * 2 + Math.PI / 2
+        const calm = 0.035 * Math.cos(9 * a) * (1 - energy)
+        edge[i] = r0 * (0.96 + calm + (0.2 * sm[i] + 0.04 * b) * energy)
+        const len = 1.5 + (raw[i] * 0.6 + sm[i] * 0.4) * size * 0.09 * energy
+        const ca = Math.cos(a), sa = Math.sin(a)
+        const e = edge[i] + gap
+        d += `M${(c + ca * e).toFixed(1)} ${(c + sa * e).toFixed(1)}L${(c + ca * (e + len)).toFixed(1)} ${(c + sa * (e + len)).toFixed(1)}`
+      }
+      ticks.current?.setAttribute("d", d)
+      if (shape.current) shape.current.style.clipPath = `path("${blob(c, c, edge)}")`
       if (glow.current) glow.current.style.opacity = (0.15 + 0.5 * b * energy).toFixed(3)
     }
     draw()
-    if (!playing) { let frames = 40; return rafLoop(() => { if (frames-- > 0) draw() }) }
+    if (!playing || reduce) { let frames = 40; return rafLoop(() => { if (frames-- > 0) draw() }) }
     return rafLoop(draw)
-  }, [playing, size, r0])
+  }, [playing, size, r0, reduce])
+  const span = r0 * 1.26 // a imagem cobre até onde a borda pode crescer
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <div ref={glow} aria-hidden className="absolute rounded-full blur-2xl" style={{ inset: size / 2 - r0, background: "var(--sh-accent)", opacity: 0.15, willChange: "opacity" }} />
       <svg width={size} height={size} className="absolute inset-0" aria-hidden>
-        <path ref={path} stroke="var(--sh-accent)" strokeWidth={Math.max(1.4, size / 120)} strokeLinecap="round" opacity={0.9} />
+        <path ref={ticks} stroke="var(--sh-accent)" strokeWidth={Math.max(1.4, size / 120)} strokeLinecap="round" opacity={0.9} />
       </svg>
-      <div ref={cover} className="absolute will-change-transform" style={{ inset: size / 2 - r0 }}>
-        <div className="relative h-full w-full overflow-hidden" style={{ clipPath: clip, background: "var(--sh-2)", animation: "vinyl-spin 30s linear infinite", animationPlayState: playing ? "running" : "paused" }}>
+      <div ref={shape} className="absolute inset-0" style={{ background: "transparent" }}>
+        <div className="absolute overflow-hidden rounded-full" style={{ inset: size / 2 - span, background: "var(--sh-2)", animation: "vinyl-spin 30s linear infinite", animationPlayState: playing && !reduce ? "running" : "paused" }}>
           <AnimatePresence initial={false}>
             {art ? <motion.img key={art} src={art} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} />

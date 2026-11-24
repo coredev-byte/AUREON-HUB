@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
-  AppWindow, Check, Clipboard, Crown, Eye, EyeOff, KeyRound, Lock, LockOpen, LogIn, Maximize, Minimize, Monitor, MonitorOff, MonitorUp, PhoneOff, Plus,
+  AppWindow, Check, Clipboard, Crown, Expand, Eye, EyeOff, KeyRound, Shrink, Lock, LockOpen, LogIn, Maximize, Minimize, Monitor, MonitorOff, MonitorUp, PhoneOff, Plus,
   RefreshCw, Repeat, Settings2, ShieldCheck, Stethoscope, UserPlus, UserX, Users, Volume2, VolumeX, X,
 } from "lucide-react"
 import { invoke, isElectron } from "@/shared/bridge"
@@ -265,9 +265,39 @@ function MyTile(t: TileProps) {
 }
 
 const GRADE: Record<string, { t: string; c: string }> = { good: { t: "boa", c: "var(--dc-green)" }, fair: { t: "razoável", c: "#f0b232" }, poor: { t: "fraca", c: "var(--dc-red)" } }
+/** tela cheia de um bloco: entra e SAI pelo mesmo botão (e por Esc / clique duplo); avisa quando muda */
+function useFullscreen(box: React.RefObject<HTMLElement | null>) {
+  const [on, setOn] = useState(false)
+  useEffect(() => {
+    // além do aviso de mudança, confere ao redimensionar: sair por Esc ou pelo sistema sempre muda o tamanho
+    const ch = () => setOn(!!box.current && document.fullscreenElement === box.current)
+    document.addEventListener("fullscreenchange", ch)
+    window.addEventListener("resize", ch)
+    return () => { document.removeEventListener("fullscreenchange", ch); window.removeEventListener("resize", ch) }
+  }, [box])
+  // Esc sai da tela cheia mesmo onde o Electron não trata isso sozinho
+  useEffect(() => {
+    if (!on) return
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape" && document.fullscreenElement) void document.exitFullscreen().catch(() => {}) }
+    window.addEventListener("keydown", key)
+    return () => window.removeEventListener("keydown", key)
+  }, [on])
+  const toggle = () => {
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+    else void box.current?.requestFullscreen().catch(() => {})
+  }
+  return { on, toggle }
+}
+
 function StreamTile({ w, member, ...t }: TileProps & { w: Watch; member?: Member }) {
   const ref = useRef<HTMLVideoElement>(null)
   const box = useRef<HTMLDivElement>(null)
+  const fs = useFullscreen(box)
+  // em tela cheia os controles aparecem ao mexer o mouse e somem depois de um tempo parado
+  const [awake, setAwake] = useState(true)
+  const idle = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const wake = () => { setAwake(true); clearTimeout(idle.current); idle.current = setTimeout(() => setAwake(false), 2500) }
+  useEffect(() => { if (fs.on) wake(); return () => clearTimeout(idle.current) }, [fs.on])
   const [vol, setVol] = useState(1)
   const [muted, setMuted] = useState(false)
   useEffect(() => { if (ref.current && w.stream && ref.current.srcObject !== w.stream) ref.current.srcObject = w.stream }, [w.stream])
@@ -276,7 +306,9 @@ function StreamTile({ w, member, ...t }: TileProps & { w: Watch; member?: Member
   const st = w.stats
   const name = member?.name ?? "Transmissão"
   return (
-    <div ref={box} className={cx("dc-tile", t.small && "dc-tile-small", t.focused && "dc-tile-focused")} aria-label={"Tela de " + name} onDoubleClick={t.onFocus}>
+    <div ref={box} className={cx("dc-tile", t.small && "dc-tile-small", t.focused && "dc-tile-focused", fs.on && "dc-fs", fs.on && awake && "dc-fs-awake")} aria-label={"Tela de " + name}
+      onDoubleClick={fs.on ? fs.toggle : t.onFocus} onMouseMove={fs.on ? wake : undefined}>
+      {fs.on && <button type="button" className="dc-fs-exit" aria-label="Sair da tela cheia" onClick={fs.toggle}><Minimize size={16} />Sair da tela cheia<span className="dc-dim">Esc</span></button>}
       <video ref={ref} autoPlay playsInline aria-label={"Transmissão de " + name} />
       {w.phase !== "watching" && (
         <div className="dc-tile-over">
@@ -301,8 +333,8 @@ function StreamTile({ w, member, ...t }: TileProps & { w: Watch; member?: Member
             {!t.small && <input className="range" type="range" min={0} max={1} step={0.05} value={vol} aria-label="Volume" style={{ width: 80, ["--p" as string]: vol * 100 + "%" }} onChange={(e) => { setVol(Number(e.target.value)); setMuted(false) }} />}
           </>
         )}
-        <button type="button" className="dc-icon" aria-label={t.focused ? "Voltar à grade" : "Focar"} onClick={t.onFocus}>{t.focused ? <Minimize size={16} /> : <Maximize size={16} />}</button>
-        <button type="button" className="dc-icon" aria-label="Tela cheia" onClick={() => void box.current?.requestFullscreen()}><Maximize size={16} /></button>
+        {!fs.on && <button type="button" className="dc-icon" aria-label={t.focused ? "Voltar à grade" : "Focar"} title={t.focused ? "Voltar à grade" : "Focar"} onClick={t.onFocus}>{t.focused ? <Minimize size={16} /> : <Maximize size={16} />}</button>}
+        <button type="button" className="dc-icon" aria-label={fs.on ? "Sair da tela cheia" : "Tela cheia"} title={fs.on ? "Sair da tela cheia (Esc)" : "Tela cheia"} onClick={fs.toggle}>{fs.on ? <Shrink size={16} /> : <Expand size={16} />}</button>
         <button type="button" className="dc-icon" aria-label={"Parar de assistir " + name} onClick={() => unwatchPeer(w.peer)}><X size={16} /></button>
       </div>
     </div>

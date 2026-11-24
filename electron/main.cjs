@@ -148,6 +148,7 @@ function registerIpc() {
   h("weather:search", any, (_e, q) => weather.search(q))
   h("games:get", any, () => games.get())
   h("wallpaper:get", any, () => wallpaper.get())
+  h("wallpaper:refresh", any, () => wallpaper.refresh())
   // widgets portados do Widgy: texto de URLs públicas (pelo principal, com limites), esportes, times e Valorant
   h("net:text", any, (_e, url) => fetchSafeText(net.fetch.bind(net), String(url || "")))
   const relay = { isDestroyed: () => false, webContents: { send: (ch, d) => broadcast(ch, d) } }

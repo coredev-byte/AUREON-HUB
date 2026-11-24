@@ -144,6 +144,22 @@ async function main() {
     ok(rms > 0.05, `"Tudo menos o Discord": o som do PC (pela captura por programa) chega a quem assiste (nível ${rms.toFixed(3)})`)
     const cA = await colorOf(bia, "Ana")
     ok(cA[0] > 180 && cA[2] < 90, "imagem certa (vermelho): " + cA)
+    // tela cheia: entra pelo botão e SAI pelo botão fixo "Sair da tela cheia" (e também por Esc)
+    const tileBox = bia.getByLabel("Tela de Ana")
+    await tileBox.hover()
+    await tileBox.getByRole("button", { name: "Tela cheia", exact: true }).click()
+    await bia.waitForFunction(() => !!document.fullscreenElement, null, { timeout: 5000 })
+    await bia.getByRole("button", { name: "Sair da tela cheia" }).first().click()
+    await bia.waitForFunction(() => !document.fullscreenElement, null, { timeout: 5000 })
+    await tileBox.hover()
+    await tileBox.getByRole("button", { name: "Tela cheia", exact: true }).click()
+    await bia.waitForFunction(() => !!document.fullscreenElement, null, { timeout: 5000 })
+    await bia.keyboard.press("Escape")
+    const escOut = await bia.waitForFunction(() => !document.fullscreenElement, null, { timeout: 3000 }).then(() => true, () => false)
+    if (!escOut) await bia.evaluate(() => document.exitFullscreen()) // navegador sem janela pode não repassar o Esc
+    await bia.waitForTimeout(300)
+    ok(!(await bia.evaluate(() => !!document.fullscreenElement)) && await bia.getByRole("button", { name: "Sair da tela cheia" }).count() === 0,
+      "tela cheia entra e sai pelo botão" + (escOut ? " e pelo Esc" : ""))
 
     // 5) Bia transmite AO MESMO TEMPO (outra tela, azul); Caio assiste as duas
     await bia.evaluate(() => { window.__screen = 1 })

@@ -44,9 +44,9 @@
 /* fundo escolhido por widget */
 /* vidro: menos cor por cima da cópia desfocada e um brilho fino no topo; sem papel de parede legível
    (papel animado), fica translúcido com o mesmo brilho */
-.wg-bg-glass { background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 42%), color-mix(in srgb, var(--bg) 58%, transparent); border-color: rgba(255, 255, 255, 0.12); }
+.wg-bg-glass { background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 42%), color-mix(in srgb, var(--bg) 38%, transparent); border-color: rgba(255, 255, 255, 0.14); }
 .wg-bg-glass.wg-has-glass { background: transparent; }
-.wg-bg-glass .wg-glass::after { background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 42%), color-mix(in srgb, var(--bg) 34%, transparent); }
+.wg-bg-glass .wg-glass::after { background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 42%), color-mix(in srgb, var(--bg) 22%, transparent); }
 .wg-bg-solid { background: var(--bg); }
 .wg-bg-none { background: transparent; border-color: transparent; box-shadow: none; }
 /* sem fundo: uma sombra leve no texto mantém a leitura sobre qualquer papel de parede */
