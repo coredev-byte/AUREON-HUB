@@ -5,6 +5,15 @@
 
 
 
+## 0.7.2 (pedido do usuário: onde muda para transparente; com Wallpaper Engine o vidro não mudava nada)
+
+- **Mais fácil de achar:** em Widgets › (Música, Clima, Esportes) a escolha **Fundo** aparece logo na primeira aba (Conteúdo), além de Aparência. A opção "Sem fundo" passou a se chamar **Transparente**.
+- **Wallpaper Engine:** antes, com ele aberto, o app não tinha imagem para desfocar e o vidro ficava sem desfoque. Agora o app acha o Wallpaper Engine (pelo programa em execução ou pelas bibliotecas da Steam), lê no `config.json` dele o papel de parede em uso e usa a **imagem de prévia** desse papel de parede como fundo desfocado. Prévias em GIF viram uma imagem parada antes de ir para o vidro (sem custo de animação). As pastas encontradas ficam guardadas para não abrir o PowerShell a cada minuto.
+- Limites: é a prévia (foto parada), então as cores batem mas não acompanha a animação; com vários monitores, usa o papel de parede do primeiro listado. Com o Lively, continua só translúcido.
+- O aviso em Fundo › Vidro diz qual fonte está em uso ("Wallpaper Engine: usando a imagem de prévia…") ou o motivo de não haver desfoque.
+
+Verificação: lint, 87 testes unitários (novo: config do Wallpaper Engine, prévia por project.json e pela pasta, tamanho de GIF), Electron sem erros e captura do vidro com uma prévia em GIF.
+
 ## 0.7.1 (pedido do usuário: vidro translúcido, sair da tela cheia na transmissão e capa unida às ondas)
 
 **Vidro translúcido**

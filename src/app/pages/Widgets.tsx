@@ -126,6 +126,7 @@ function Content({ w }: { w: WidgetInstance }) {
   const def = CATALOG[w.type]
   return (
     <>
+      {def.glassable && <BgSetting w={w} />}
       {def.fields.filter((f) => !f.when || ((w.config[f.when.key] as string) ?? def.fields.find((x) => x.key === f.when!.key)?.default) === f.when.value).map((f) => (
         <Setting key={f.key} title={f.label}>
           {f.kind === "toggle"
@@ -148,9 +149,9 @@ function Content({ w }: { w: WidgetInstance }) {
 
 const BG_HELP: Record<WidgetBg, string> = {
   default: "Usa o visual padrão de Personalização › Widgets.",
-  glass: "Vidro fosco: o papel de parede aparece desfocado por trás. Com papel de parede animado, fica translúcido.",
+  glass: "Translúcido, com o papel de parede desfocado por trás (como vidro fosco).",
   solid: "Fundo opaco na cor do tema: mais legível sobre papéis de parede movimentados.",
-  none: "Sem caixa nenhuma: só o conteúdo, com uma sombra leve no texto para continuar legível.",
+  none: "Totalmente transparente: sem caixa, só o conteúdo, com uma sombra leve no texto para continuar legível.",
 }
 
 /** o que o vidro está usando de verdade agora (e por que não desfoca, quando não dá) */
@@ -158,9 +159,10 @@ function GlassStatus() {
   const wp = useWallpaper()
   const [busy, setBusy] = useState(false)
   const text = !wp ? "Lendo o papel de parede…"
+    : wp.kind === "image" && wp.source === "wallpaper-engine" ? "Wallpaper Engine: usando a imagem de prévia do papel de parede animado, desfocada (é uma foto parada, então as cores batem mas não acompanha a animação)."
     : wp.kind === "image" ? "Usando seu papel de parede, desfocado por trás do widget."
     : wp.kind === "color" ? "Seu fundo é uma cor sólida: o vidro usa essa cor."
-    : "Sem desfoque agora (" + wp.reason.replace(/\.$/, "") + "). O widget fica translúcido, mostrando a área de trabalho por trás."
+    : "Sem desfoque agora (" + wp.reason.replace(/\.$/, "") + "). O widget fica translúcido, mostrando o papel de parede por trás, só que nítido."
   return (
     <div className="mt-2 flex items-center gap-3 text-[12px]" style={{ color: wp && wp.kind === "none" ? "var(--warn)" : "var(--muted)" }} role="status">
       <span className="min-w-0 flex-1">{text}</span>
@@ -173,14 +175,21 @@ function GlassStatus() {
   )
 }
 
-function Look({ w }: { w: WidgetInstance }) {
-  const def = CATALOG[w.type]
+/** escolha do fundo (Padrão, Vidro, Sólido, Transparente), com o que o vidro está usando de verdade */
+function BgSetting({ w }: { w: WidgetInstance }) {
   const bg = (w.bg ?? "default") as WidgetBg
   return (
+    <Setting title="Fundo" desc={<>{BG_HELP[bg]}{bg === "glass" && <GlassStatus />}</>}>
+      <Segmented label="Fundo" value={bg} onChange={(v) => updateWidget(w.id, { bg: v })} options={[{ value: "default", label: "Padrão" }, { value: "glass", label: "Vidro" }, { value: "solid", label: "Sólido" }, { value: "none", label: "Transparente" }]} />
+    </Setting>
+  )
+}
+
+function Look({ w }: { w: WidgetInstance }) {
+  const def = CATALOG[w.type]
+  return (
     <>
-      <Setting title="Fundo" desc={<>{BG_HELP[bg] + (def.bare && bg !== "none" && bg !== "default" ? " Este widget desenha o próprio fundo; o ajuste fino fica em Conteúdo." : "")}{bg === "glass" && <GlassStatus />}</>}>
-        <Segmented label="Fundo" value={bg} onChange={(v) => updateWidget(w.id, { bg: v })} options={[{ value: "default", label: "Padrão" }, { value: "glass", label: "Vidro" }, { value: "solid", label: "Sólido" }, { value: "none", label: "Sem fundo" }]} />
-      </Setting>
+      <BgSetting w={w} />
       <Setting title="Transparência" desc="O widget inteiro (conteúdo e fundo)."><Slider label="Opacidade" min={0.2} max={1} step={0.05} value={w.opacity} onChange={(v) => updateWidget(w.id, { opacity: v })} format={(v) => Math.round(v * 100) + "%"} /></Setting>
       <Setting title="Cor de destaque" desc="Barras, ponteiros e detalhes. “Do app” segue Personalização.">
         <ColorRow value={w.color} colors={SWATCHES} onChange={(c) => updateWidget(w.id, { color: c })} emptyLabel="Do app" />

@@ -7,7 +7,7 @@ import path from "node:path"
 import { createRequire } from "node:module"
 import { placement } from "../src/shared/wallpaperPlacement.ts"
 const require = createRequire(import.meta.url)
-const { createWallpaper, styleOf, rgbHex, regValue } = require("../electron/integrations/wallpaper.cjs")
+const { createWallpaper, styleOf, rgbHex, regValue, weSelectedFiles, wePreview, findWallpaperEngine, gifSize } = require("../electron/integrations/wallpaper.cjs")
 
 test("registro: lê WallPaper, estilo e cor de fundo", () => {
   const out = "\r\nHKEY_CURRENT_USER\\Control Panel\\Desktop\r\n    WallPaper    REG_SZ    C:\\Users\\a\\Pictures\\praia.jpg\r\n    WallpaperStyle    REG_SZ    10\r\n    TileWallpaper    REG_SZ    0\r\n"
@@ -51,4 +51,27 @@ test("fora do Windows não inventa papel de parede; com imagem de teste, gera mi
   assert.match(r.url, /^data:image\/jpeg;base64,/)
   await wp.refresh()
   assert.deepEqual(sent, [["wallpaper:changed", "image"]], "sem mudança, não avisa de novo")
+})
+
+test("Wallpaper Engine: acha a prévia do papel de parede em uso pelo config.json", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "we-"))
+  const install = path.join(root, "wallpaper_engine")
+  const proj = path.join(root, "workshop", "content", "431960", "123")
+  fs.mkdirSync(install, { recursive: true }); fs.mkdirSync(proj, { recursive: true })
+  fs.writeFileSync(path.join(proj, "project.json"), JSON.stringify({ title: "Cidade", preview: "preview.gif", type: "scene" }))
+  // GIF mínimo 640×360 (cabeçalho)
+  const gif = Buffer.alloc(13); gif.write("GIF89a", 0, "ascii"); gif.writeUInt16LE(640, 6); gif.writeUInt16LE(360, 8)
+  fs.writeFileSync(path.join(proj, "preview.gif"), gif)
+  const cfg = { jogador: { general: { wallpaperconfig: { selectedwallpapers: { Monitor0: { file: proj.replace(/\\/g, "/") + "/scene.pkg", playlist: {} } } } }, browser: { file: "/nao/e/esse.json" } } }
+  fs.writeFileSync(path.join(install, "config.json"), JSON.stringify(cfg))
+
+  assert.deepEqual(weSelectedFiles(cfg), [proj.replace(/\\/g, "/") + "/scene.pkg"], "só os arquivos dentro de selectedwallpapers")
+  assert.equal(wePreview(proj), path.join(proj, "preview.gif"))
+  assert.equal(findWallpaperEngine([path.join(root, "nao-existe"), install]), path.join(proj, "preview.gif"))
+  assert.deepEqual(gifSize(gif), { width: 640, height: 360 })
+  assert.equal(gifSize(Buffer.from("\xff\xd8\xff\xe0jpeg")), null)
+  // sem "preview" no project.json, usa preview.jpg da pasta
+  const p2 = path.join(root, "p2"); fs.mkdirSync(p2); fs.writeFileSync(path.join(p2, "preview.jpg"), "x")
+  assert.equal(wePreview(p2), path.join(p2, "preview.jpg"))
+  assert.equal(findWallpaperEngine([path.join(root, "p2")]), null, "pasta sem config.json não conta")
 })
