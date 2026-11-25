@@ -12,10 +12,37 @@ import { initial, reduce, sizeOf, type Mode, type NotchState, type Tab } from ".
 import { CarbonoMediaTab } from "./CarbonoMedia"
 import { useCoverArt } from "@/shared/coverArt"
 import { INTRO_MS, Intro } from "./Intro"
+import { placement, useWallpaper, type Wallpaper } from "@/shared/wallpaper"
+import type { DisplayInfo } from "@/shared/types"
 
 const params = new URLSearchParams(location.search)
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 const IS_PRIMARY = params.get("primary") !== "0"
+const DISPLAY = params.get("display") ?? ""
+
+/**
+ * Vidro do notch: a mesma ideia dos widgets (a janela transparente não enxerga o papel de parede, então desenha
+ * uma cópia dele desfocada e alinhada com a tela). A camada cobre a janela inteira e fica centralizada, como o
+ * próprio notch; o recorte do notch só mostra a parte que está atrás dele, então o vidro acompanha o notch
+ * abrindo e fechando sem recalcular nada. A imagem é estática: o navegador desfoca uma vez e reaproveita.
+ */
+function NotchGlass({ wp, display, scale }: { wp: Wallpaper | null; display: DisplayInfo | undefined; scale: number }) {
+  if (!wp || wp.kind === "none" || !display) return null
+  const W = innerWidth, H = innerHeight, b = 40
+  const k = 1 / (scale || 1)
+  const box: CSSProperties = { left: "50%", top: -b * k, width: (W + 2 * b) * k, height: (H + 2 * b) * k, marginLeft: (-(W + 2 * b) * k) / 2 }
+  if (wp.kind === "color") return <i className="notch-glass" aria-hidden style={{ ...box, backgroundColor: wp.color }} />
+  // a janela do notch fica centralizada no topo do monitor (electron/notch/manager.cjs)
+  const wx = Math.round((display.bounds.width - W) / 2), wy = 0
+  const p = placement(wp.style, wp, { width: display.bounds.width, height: display.bounds.height }, display.scale)
+  return (
+    <i className="notch-glass" aria-hidden style={{
+      ...box, backgroundColor: wp.color ?? "#000", backgroundImage: `url("${wp.url}")`, backgroundRepeat: p.repeat ? "repeat" : "no-repeat",
+      backgroundSize: `${p.w * k}px ${p.h * k}px`, backgroundPosition: `${(p.x - wx + b) * k}px ${(p.y - wy + b) * k}px`,
+      filter: `blur(${Math.round(26 * k)}px) saturate(1.3)`,
+    }} />
+  )
+}
 const WANT_INTRO = params.get("intro") === "1" && !matchMedia("(prefers-reduced-motion: reduce)").matches
 
 export function NotchApp() {
@@ -30,6 +57,17 @@ export function NotchApp() {
   const session = rawSession ? { ...rawSession, art: coverArt } : null
   const [fsHere, setFsHere] = useState(false)
   const [s, dispatch] = useReducer(reduce, undefined, () => initial())
+  // vidro: papel de parede e monitor deste notch (só quando o fundo escolhido é Vidro)
+  const glassOn = settings?.notchColor === "glass"
+  const wallpaper = useWallpaper(glassOn)
+  const [displays, setDisplays] = useState<DisplayInfo[]>([])
+  useEffect(() => {
+    if (!glassOn) return
+    const load = () => void invoke("app:info").then((i: { displays: DisplayInfo[] }) => setDisplays(i.displays)).catch(() => {})
+    load()
+    return on("displays:changed", load)
+  }, [glassOn])
+  const display = displays.find((d) => String(d.id) === DISPLAY) ?? displays.find((d) => d.primary) ?? displays[0]
   // abertura: uma vez, e nunca com "reduzir animações"
   const [intro, setIntro] = useState(WANT_INTRO)
   useEffect(() => { if (!intro) return; const t = setTimeout(() => setIntro(false), INTRO_MS); return () => clearTimeout(t) }, [intro])
@@ -86,18 +124,21 @@ export function NotchApp() {
   useEffect(() => { prevArea.current = size.w * size.h }, [size.w, size.h])
   if (!ns || !settings) return null
   const style = { "--w": size.w + "px", "--h": size.h + "px", "--r": size.r + "px" } as CSSProperties
+  // em jogo/vídeo em tela cheia o papel de parede não está visível: o notch volta a ser uma película escura
+  const glassLayer = glassOn && !fsHere && !!wallpaper && wallpaper.kind !== "none"
   return (
     <div className="notch-stage">
       {intro && <Intro />}
       <div className="notch-zoom" style={{ transform: `scale(${ns.scale})` }}>
         <div
-          ref={shape} className="notch" data-mode={fsHere ? "fullscreen" : s.mode} data-grow={grow} data-intro={intro} style={style}
+          ref={shape} className="notch" data-mode={fsHere ? "fullscreen" : s.mode} data-grow={grow} data-intro={intro} data-glass={glassOn ? (glassLayer ? "blur" : "tint") : undefined} style={style}
           role="region" aria-label="Notch do Aureon"
           onClick={(e) => { if ((e.target as HTMLElement).closest("button,[data-noclick]")) return; dispatch({ type: "click" }) }}
           onContextMenu={(e) => { e.preventDefault(); void invoke("notch:menu") }}
         >
           <div className="notch-shadow" aria-hidden />
           <div className="notch-clip">
+            {glassLayer && <NotchGlass wp={wallpaper} display={display} scale={ns.scale} />}
             {fsHere ? <FullscreenPill share={share} /> : <Content s={s} dispatch={dispatch} share={share} media={session} idleClock={ns.idleClock} widgetsOn={widgets?.enabled ?? true} />}
           </div>
         </div>

@@ -148,7 +148,7 @@ function sanitize(section, v) {
     out.widgetBlur = clamp(out.widgetBlur, 0, 30, 14)
     out.widgetRadius = clamp(out.widgetRadius, 4, 28, 14)
     if (!["none", "soft", "strong"].includes(out.widgetShadow)) out.widgetShadow = "soft"
-    if (!["black", "graphite", "surface"].includes(out.notchColor)) out.notchColor = "black"
+    if (!["black", "graphite", "surface", "glass"].includes(out.notchColor)) out.notchColor = "black"
     out.radius = clamp(out.radius, 6, 22, d.radius)
     out.units = out.units === "f" ? "f" : "c"
     if (out.signalUrl && !/^wss?:\/\/[^\s]+$/i.test(out.signalUrl)) out.signalUrl = ""

@@ -54,6 +54,9 @@ export default function NotchPage() {
         <Setting title="Indicador sobre tela cheia" desc="Enquanto você transmite, uma pílula mínima (sem cliques) fica visível sobre jogos e vídeos em tela cheia."><Switch label="Indicador sobre tela cheia" checked={ns.fullscreenIndicator} onChange={(v) => set({ fullscreenIndicator: v })} /></Setting>
       </Section>
       <Section title="Aparência">
+        <Setting title="Fundo" desc={s.notchColor === "glass" ? "Translúcido: o papel de parede aparece desfocado por trás do notch e do painel." : "Vidro deixa o notch e o painel translúcidos, como os widgets."}>
+          <Segmented label="Fundo do notch" value={s.notchColor} onChange={(v) => void patch("settings", { notchColor: v })} options={[{ value: "black", label: "Preto" }, { value: "graphite", label: "Grafite" }, { value: "surface", label: "Do fundo" }, { value: "glass", label: "Vidro" }]} />
+        </Setting>
         <Setting title="Tamanho"><Slider label="Tamanho" min={0.85} max={1.25} step={0.05} value={ns.scale} onChange={(v) => set({ scale: v })} format={(v) => Math.round(v * 100) + "%"} /></Setting>
       </Section>
     </div>

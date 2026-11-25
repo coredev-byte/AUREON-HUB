@@ -56,6 +56,13 @@ function Preview({ s }: { s: Settings }) {
   )
 }
 
+const NOTCH_BG_HELP = {
+  black: "Preto puro: se confunde com a borda do monitor.",
+  graphite: "Cinza bem escuro.",
+  surface: "A cor de fundo do app.",
+  glass: "Translúcido: o papel de parede aparece desfocado por trás do notch e do painel (com Wallpaper Engine, pela imagem de prévia).",
+} as const
+
 export default function Personalize() {
   const s = useSection("settings")
   if (!s) return <div />
@@ -117,7 +124,7 @@ export default function Personalize() {
       </Section>
 
       <Section title="Notch" desc="Tamanho, conteúdo e comportamento ficam na página Notch.">
-        <Setting title="Cor" desc="Preto se confunde com a borda do monitor."><Segmented label="Cor do notch" value={s.notchColor} onChange={(v) => set({ notchColor: v })} options={[{ value: "black", label: "Preto" }, { value: "graphite", label: "Grafite" }, { value: "surface", label: "Do fundo" }]} /></Setting>
+        <Setting title="Fundo" desc={NOTCH_BG_HELP[s.notchColor]}><Segmented label="Fundo do notch" value={s.notchColor} onChange={(v) => set({ notchColor: v })} options={[{ value: "black", label: "Preto" }, { value: "graphite", label: "Grafite" }, { value: "surface", label: "Do fundo" }, { value: "glass", label: "Vidro" }]} /></Setting>
         <Setting title="Contorno sutil" desc="Uma linha fina embaixo, para destacar do papel de parede escuro."><Switch label="Contorno do notch" checked={s.notchBorder} onChange={(v) => set({ notchBorder: v })} /></Setting>
       </Section>
 

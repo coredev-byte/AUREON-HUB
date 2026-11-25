@@ -5,6 +5,16 @@
 
 
 
+## 0.7.3 (pedido do usuário: o notch também translúcido, como no vídeo)
+
+- Novo fundo **Vidro** para o notch, em **Notch › Aparência › Fundo** e em **Personalização › Notch › Fundo**. O notch fechado e o painel aberto passam a mostrar o papel de parede desfocado por trás, com uma película escura por cima para o texto branco continuar legível.
+- Mesma técnica dos widgets: a janela do notch desenha uma cópia do papel de parede desfocada e alinhada com a tela. A camada cobre a janela inteira e fica centralizada como o notch, então o vidro acompanha o notch abrindo e fechando sem recalcular nada. A imagem é estática: desfoca uma vez e é reaproveitada.
+- Com Wallpaper Engine, usa a imagem de prévia (0.7.2). Com jogo ou vídeo em tela cheia, ou sem papel de parede legível, o notch fica só com a película escura translúcida, sem desfoque.
+- Preto, Grafite e Do fundo continuam iguais. O padrão continua Preto.
+- Limite: as "orelhas" côncavas que ligam o notch à borda (11 px) ficam só com a película, sem desfoque.
+
+Verificação: lint, 87 testes unitários, clique real no notch, Electron sem erros e capturas do notch fechado e aberto com papel de parede de teste.
+
 ## 0.7.2 (pedido do usuário: onde muda para transparente; com Wallpaper Engine o vidro não mudava nada)
 
 - **Mais fácil de achar:** em Widgets › (Música, Clima, Esportes) a escolha **Fundo** aparece logo na primeira aba (Conteúdo), além de Aparência. A opção "Sem fundo" passou a se chamar **Transparente**.

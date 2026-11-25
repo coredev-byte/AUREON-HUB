@@ -37,7 +37,7 @@ export const NUM_FONTS: Record<NumFont, { label: string; family: string }> = {
   majormono: { label: "Major Mono", family: "'Major Mono Display', monospace" },
 }
 const SHADOW = { none: "none", soft: "0 8px 24px rgba(0,0,0,.28)", strong: "0 16px 44px rgba(0,0,0,.5)" }
-const NOTCH = { black: "#000000", graphite: "#161618" }
+const NOTCH = { black: "#000000", graphite: "#161618", glass: "rgba(12, 12, 16, 0.5)" }
 
 type ThemeInput = Pick<Settings, "accent" | "surface" | "font" | "radius" | "reduceMotion"> & Partial<Settings>
 export function applyTheme(s: ThemeInput, root = document.documentElement) {
@@ -58,7 +58,7 @@ export function applyTheme(s: ThemeInput, root = document.documentElement) {
     "--wg-border": s.widgetBorder === false ? "transparent" : "var(--line)",
     "--wg-shadow": SHADOW[s.widgetShadow ?? "soft"],
     "--wg-radius": (s.widgetRadius ?? 14) + "px",
-    "--notch-bg": s.notchColor === "surface" ? "var(--bg)" : NOTCH[s.notchColor === "graphite" ? "graphite" : "black"],
+    "--notch-bg": s.notchColor === "surface" ? "var(--bg)" : NOTCH[s.notchColor === "graphite" ? "graphite" : s.notchColor === "glass" ? "glass" : "black"],
     "--notch-border": s.notchBorder ? "rgba(255,255,255,.09)" : "transparent",
   }
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v)

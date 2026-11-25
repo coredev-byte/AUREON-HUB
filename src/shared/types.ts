@@ -7,7 +7,7 @@ export interface Settings {
   accent: string; surface: string; font: UiFont; numFont: NumFont; radius: number; reduceMotion: boolean
   animSpeed: number; textScale: number; hour12: boolean
   widgetBg: number; widgetBlur: number; widgetBorder: boolean; widgetShadow: "none" | "soft" | "strong"; widgetRadius: number
-  notchColor: "black" | "graphite" | "surface"; notchBorder: boolean
+  notchColor: "black" | "graphite" | "surface" | "glass"; notchBorder: boolean
   launchAtLogin: boolean; signalUrl: string; city: City | null; units: "c" | "f"
   hotkey: string; hotkeyOn: boolean; onboarded: boolean
   autoCheck: boolean; autoUpdate: boolean
